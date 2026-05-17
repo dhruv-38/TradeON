@@ -4,20 +4,32 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
-import { prisma } from "@repo/db";
-import {config} from '@repo/config';
+import { prisma, Prisma } from "@repo/db";
+import { config } from '@repo/config';
+import { authRouter } from './routes/auth.routes.js';
+import { errorMiddleware } from './middleware/error.middleware.js';
 
 const app = express();
 
 app.use(express.json());
 
-app.get("/",async (req,res)=>{
-    const users = await prisma.user.findMany();
-    console.log(users);
-    res.json(users);
+app.use('/api/v1/auth', authRouter);
+
+app.get("/", async (req, res) => {
+  // const users = await prisma.user.findMany();
+  // console.log(users);
+  // res.json(users);
+  const a = new Prisma.Decimal("0.1")
+  const b = new Prisma.Decimal("0.2")
+
+  console.log(a.plus(b).toString())
+  res.json({
+  amount: new Prisma.Decimal("100.55")
+})
 
 });
 
+app.use(errorMiddleware);
 app.listen(3003, async () => {
   try {
     await prisma.$connect();

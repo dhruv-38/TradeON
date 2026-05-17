@@ -1,0 +1,12 @@
+{
+  "name": "@repo/schemas-types",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "@repo/typescript-config":"workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "type": "module"
+}

@@ -15,12 +15,16 @@ if (existsSync(envPath)) {
 
 const envSchema = z.object({
   DATABASE_URL: z.string(),
+  JWT_SECRET:z.string(),
+  NODE_ENV:z.string(),
 });
 
 const env = envSchema.parse(process.env);
 
 export const config ={
     DATABASE_URL :env.DATABASE_URL,
+    JWT_SECRET:env.JWT_SECRET,
+    NODE_ENV:env.NODE_ENV,
 };
 
 export default config;
