@@ -14,11 +14,11 @@ export const signupAuthService = async (data:RegisterUserInput)=>{
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = await createUser(username, email,hashedPassword);
+        const {newUser, wallet} = await createUser(username, email,hashedPassword);
         const token = jwt.sign({ id: newUser.id, email: newUser.email, }, config.JWT_SECRET, {
             expiresIn: "1d",
         });
-        return {token, newUser};
+        return {token, newUser,wallet};
 };
 
 export const loginAuthService = async (data:LoginUserInput)=>{

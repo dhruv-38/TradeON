@@ -12,7 +12,7 @@ export const signupController = asyncHandler(async (req: Request, res: Response)
   if (!result.success) {
     throw new ValidationError(result.error.message);
   }
-  const { token, newUser } = await signupAuthService(result.data);
+  const { token, newUser,wallet } = await signupAuthService(result.data);
 
   res.cookie("jwt", token, {
     maxAge: 24 * 60 * 60 * 1000, // MS
@@ -25,7 +25,8 @@ export const signupController = asyncHandler(async (req: Request, res: Response)
     user: {
       id: newUser.id,
       email: newUser.email,
-      name: newUser.name
+      name: newUser.name,
+      walletid:wallet.id
     }
   });
 });
@@ -52,7 +53,6 @@ export const loginController = asyncHandler(async (req: Request, res: Response) 
       id: existingUser.id,
       name: existingUser.name,
       email: existingUser.email,
-      balance: existingUser.balance,
     },
   })
 });

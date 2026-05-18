@@ -6,14 +6,17 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { prisma, Prisma } from "@repo/db";
 import { config } from '@repo/config';
-import { authRouter } from './routes/auth.routes.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
+import { walletRouter } from './modules/wallet/wallet.routes.js';
+import { authRouter } from './modules/auth/auth.routes.js';
 
 const app = express();
 
 app.use(express.json());
 
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/wallet', walletRouter);
+
 
 app.get("/", async (req, res) => {
   // const users = await prisma.user.findMany();
