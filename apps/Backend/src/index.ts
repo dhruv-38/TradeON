@@ -13,30 +13,72 @@ import { authRouter } from './modules/auth/auth.routes.js';
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/wallet', walletRouter);
+// app.use('/api/v1/post', walletRouter);
+app.get("/test-race", async (req, res) => {
+
+  const responses = await Promise.all([
+    fetch("http://localhost:3003/api/v1/wallet/withdraw", {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: req.headers.cookie || "",
+      },
+
+      body: JSON.stringify({
+        amount: 800,
+      }),
+    }),
+
+    fetch("http://localhost:3003/api/v1/wallet/withdraw", {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: req.headers.cookie || "",
+      },
+
+      body: JSON.stringify({
+        amount: 500,
+      }),
+    }),
+  ]);
+
+  const data =
+    await Promise.all(
+      responses.map((r) => r.json())
+    );
+
+  res.json(data);
+});
 
 
 app.get("/", async (req, res) => {
-  // const users = await prisma.user.findMany();
-  // console.log(users);
-  // res.json(users);
-  const a = new Prisma.Decimal("0.1")
-  const b = new Prisma.Decimal("0.2")
+  const users = await prisma.user.findMany()
+  console.log(users);
+  res.json(users);
+  // const a = new Prisma.Decimal("0.1")
+  // const b = new Prisma.Decimal("0.2")
 
-  console.log(a.plus(b).toString())
-  res.json({
-  amount: new Prisma.Decimal("100.55")
-})
-
+  // console.log(a.plus(b).toString())
+  // res.json({
+  // amount: new Prisma.Decimal("100.55")
 });
 
 app.use(errorMiddleware);
 app.listen(3003, async () => {
   try {
+    console.log(process.env.DATABASE_URL);
     await prisma.$connect();
-    console.log("✅ Database connected successfully");
+
+    // REAL database test
+    await prisma.$queryRaw`SELECT 1`;
+
+    console.log("✅ REAL database connection successful");
   } catch (error) {
     console.error("❌ Database connection failed:", error);
   }

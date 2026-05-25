@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { config } from "@repo/config";
-import { prisma } from "@repo/db";
 import { LoginUserSchema, RegisterUserSchema } from "@repo/schemas-types";
 import { loginAuthService, signupAuthService } from "./auth.service.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";

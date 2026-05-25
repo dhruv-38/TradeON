@@ -112,8 +112,7 @@ authRouter.post("/login", async (req, res) => {
       user: {
         id: existingUser.id,
         name: existingUser.name,
-        email: existingUser.email,
-        balance: existingUser.balance,
+        email: existingUser.email
       },
     })
 
