@@ -28,27 +28,28 @@ model User {
   @@index([email])
 }
 
-enum Side {
-  buy
-  sell
+enum OrderSide {
+  BUY
+  SELL
 }
 
 enum OrderType {
-  Market
-  Limit
+  MARKET
+  LIMIT
 }
 
 enum Symbol {
-  btc
-  sol
-  eth
+  BTC_USDC
+  ETH_USDC
+  SOL_USDC
 }
 
-enum Status {
-  open
-  closed
-  cancelled
-  pending
+enum OrderStatus {
+  PENDING
+  OPEN
+  FILLED
+  CANCELLED
+  REJECTED
 }
 
 model Order {
@@ -56,19 +57,26 @@ model Order {
   userId       Int
   user         User       @relation(fields: [userId],references: [id])
   orderType    OrderType
-  side         Side
+  side         OrderSide
   symbol       Symbol
   qty          Decimal
   leverage     Int
   takeProfit   Decimal?
   stopLoss     Decimal?
   slippage     Decimal?
-  openPrice    Decimal
+  marginUsed   Decimal
+  executionPrice Decimal?
   closePrice   Decimal?
-  openTime     DateTime
+  executedAt   DateTime?
   closeTime    DateTime?
   profitLoss   Decimal?
-  status       Status
+  status       OrderStatus
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([symbol])
 }
 
 enum LedgerType {
