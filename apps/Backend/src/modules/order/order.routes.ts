@@ -1,15 +1,8 @@
-import { Router } from "express";
-
+import express, { type Router } from "express";
 import { protectRoute } from "../../middleware/auth.middleware.js";
-
 import { createOrderController } from "./order.controller.js";
 
-const router = Router();
+export const orderRouter:Router = express.Router();
 
-router.post(
-  "/",
-  protectRoute,
-  createOrderController
-);
-
-export default router;
+orderRouter.use(protectRoute);
+orderRouter.post("/",createOrderController);

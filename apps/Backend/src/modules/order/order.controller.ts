@@ -1,28 +1,18 @@
-import type {
-  Request,
-  Response,
-} from "express";
-
+import type { Request, Response} from "express";
 import { CreateOrderSchema } from "@repo/schemas-types";
-
 import { createOrderService } from "./order.service.js";
+import { ValidationError } from "../../lib/errors/ValidationError.js";
+import { asyncHandler } from "../../lib/asyncHandler.js";
 
-export const createOrderController =
-  async (
-    req: Request,
-    res: Response
-  ) => {
-    const parsed =
-      CreateOrderSchema.parse(req.body);
-
-    const result =
-      await createOrderService(
-        req.user.id,
-        parsed
-      );
+export const createOrderController = asyncHandler(async (req: Request,res: Response) => {
+    const result = CreateOrderSchema.safeParse(req.body);
+    if (!result.success) {
+        throw new ValidationError(result.error.message);
+      }
+    const {order} = await createOrderService(req.user.id,result.data);
 
     return res.status(201).json({
       success: true,
-      data: result,
+      data: order,
     });
-  };
+  });

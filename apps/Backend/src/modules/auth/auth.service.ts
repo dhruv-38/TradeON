@@ -36,7 +36,7 @@ export const loginAuthService = async (data:LoginUserInput)=>{
       )
 
     if (!isPasswordCorrect) {
-      throw new Error("Invalid Credentials");
+      throw new AuthError("Invalid Credentials");
     }
 
     const token = jwt.sign(

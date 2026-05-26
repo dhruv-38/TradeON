@@ -9,6 +9,7 @@ import { config } from '@repo/config';
 import { errorMiddleware } from './middleware/error.middleware.js';
 import { walletRouter } from './modules/wallet/wallet.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
+import { orderRouter } from './modules/order/order.routes.js';
 
 const app = express();
 
@@ -17,7 +18,7 @@ app.use(cookieParser());
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/wallet', walletRouter);
-app.use('/api/v1/orders', );
+app.use('/api/v1/orders',orderRouter);
 app.get("/test-race", async (req, res) => {
 
   const responses = await Promise.all([
