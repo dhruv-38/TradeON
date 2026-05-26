@@ -2,6 +2,7 @@ import { CreateOrderInput } from "@repo/schemas-types";
 import { reserveFunds } from "../wallet/wallet.repository.js";
 import { createOrder } from "./order.repository.js";
 import { AppError } from "../../lib/errors/AppError.js";
+import {redis, REDIS_STREAMS} from "@repo/redis"
 
 export const createOrderService = async (userId: number,data: CreateOrderInput) => {
   const {symbol,side,orderType,qty,leverage,takeProfit,stopLoss,slippage,} = data;
@@ -32,6 +33,13 @@ export const createOrderService = async (userId: number,data: CreateOrderInput) 
     takeProfit,
     stopLoss,
     slippage,
+  });
+
+  await redis.xAdd(REDIS_STREAMS.ORDER_STREAM,"*",
+  {
+    event: "order.created",
+    orderId: order.id.toString(),
+    userId: order.userId.toString(),
   });
 
   return {order};
