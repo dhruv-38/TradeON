@@ -1,6 +1,7 @@
 import { redis, REDIS_STREAMS, REDIS_GROUPS } from "@repo/redis";
+import { executeOrder } from "./execution.engine.js";
 
-const consumerName = "engine";
+const consumerName = "engine-1";
 
 async function createGroup() {
   try {
@@ -21,17 +22,9 @@ async function createGroup() {
 
 async function startConsumer() {
   while (true) {
-    const response =
-      await redis.xReadGroup(
-        REDIS_GROUPS.ENGINE_GROUP,
-
-        consumerName,
-
+    const response = await redis.xReadGroup( REDIS_GROUPS.ENGINE_GROUP, consumerName,
         [
-          {
-            key: REDIS_STREAMS.ORDER_STREAM,
-            id: ">",
-          },
+          { key: REDIS_STREAMS.ORDER_STREAM, id: ">"},
         ],
 
         {
@@ -44,33 +37,19 @@ async function startConsumer() {
 
     for (const stream of response) {
       for (const message of stream.messages) {
-        console.log(
-          "Received Event:",
-          message
-        );
-
+        console.log("Received Event:", message);
         try {
           // Later
           // fetch order
           // execute trade
           // update DB
+          await executeOrder(Number(message.message.orderId));
 
-          await redis.xAck(
-            REDIS_STREAMS.ORDER_STREAM,
+          await redis.xAck(REDIS_STREAMS.ORDER_STREAM, REDIS_GROUPS.ENGINE_GROUP, message.id);
 
-            REDIS_GROUPS.ENGINE_GROUP,
-
-            message.id
-          );
-
-          console.log(
-            `ACKED ${message.id}`
-          );
+          console.log(`ACKED ${message.id}`);
         } catch (err) {
-          console.error(
-            "Processing failed:",
-            err
-          );
+          console.error("Processing failed:", err);
         }
       }
     }

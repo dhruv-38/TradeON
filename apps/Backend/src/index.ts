@@ -3,7 +3,6 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import dotenv from 'dotenv';
 import { prisma, Prisma } from "@repo/db";
 import { config } from '@repo/config';
 import { errorMiddleware } from './middleware/error.middleware.js';
@@ -73,7 +72,7 @@ app.get("/", async (req, res) => {
 app.use(errorMiddleware);
 app.listen(3003, async () => {
   try {
-    console.log(process.env.DATABASE_URL);
+    console.log(config.DATABASE_URL);
     await prisma.$connect();
 
     // REAL database test
