@@ -68,6 +68,7 @@ model Order {
   symbol       Symbol
   qty          Decimal
   leverage     Int
+  expectedPrice   Decimal
   takeProfit   Decimal?
   stopLoss     Decimal?
   slippage     Decimal?

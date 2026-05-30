@@ -31,6 +31,7 @@ export const createOrderService = async (userId: number,data: CreateOrderInput) 
     qty,
     leverage,
     marginUsed: marginRequired,
+    expectedPrice:currentPrice,
     takeProfit,
     stopLoss,
     slippage,

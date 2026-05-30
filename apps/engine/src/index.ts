@@ -56,8 +56,6 @@ async function startConsumer() {
 
 await createGroup();
 
-console.log(
-  "Engine consumer started..."
-);
+console.log("Engine consumer started...");
 
 await startConsumer();
