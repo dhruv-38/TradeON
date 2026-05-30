@@ -2,7 +2,8 @@ import { CreateOrderInput } from "@repo/schemas-types";
 import { reserveFunds } from "../wallet/wallet.repository.js";
 import { createOrder } from "./order.repository.js";
 import { AppError } from "../../lib/errors/AppError.js";
-import {redis, REDIS_STREAMS} from "@repo/redis"
+import {redis, REDIS_STREAMS} from "@repo/redis";
+import {getMarketPrice} from "@repo/market";
 
 export const createOrderService = async (userId: number,data: CreateOrderInput) => {
   const {symbol,side,orderType,qty,leverage,takeProfit,stopLoss,slippage,} = data;
@@ -10,8 +11,8 @@ export const createOrderService = async (userId: number,data: CreateOrderInput) 
   if (leverage < 1 || leverage > 100) {
     throw new AppError("Invalid leverage",400);
   }
-  // TEMPORARY HARDCODED PRICE
-  const currentPrice = 100000;
+  
+  const currentPrice = await getMarketPrice(symbol,side);
 
   // Position Value
   const positionValue = qty * currentPrice;

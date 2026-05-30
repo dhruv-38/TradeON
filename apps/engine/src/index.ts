@@ -39,11 +39,9 @@ async function startConsumer() {
       for (const message of stream.messages) {
         console.log("Received Event:", message);
         try {
-          // Later
-          // fetch order
-          // execute trade
-          // update DB
+
           await executeOrder(Number(message.message.orderId));
+          console.log(`Order ${message.message.orderId} executed`);
 
           await redis.xAck(REDIS_STREAMS.ORDER_STREAM, REDIS_GROUPS.ENGINE_GROUP, message.id);
 

@@ -12,7 +12,9 @@ const EnvSchema = z.object({
 
   REDIS_URL: z.string(),
 
-  NODE_ENV: z.string()
+  NODE_ENV: z.string(),
+
+  BACKPACK_WS_URL: z.string()
 });
 
 const parsedEnv = EnvSchema.safeParse(process.env);

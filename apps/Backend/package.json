@@ -16,7 +16,8 @@
     "@repo/typescript-config": "workspace:*",
     "@repo/schemas-types": "workspace:*",
     "@repo/config": "workspace:*",
-    "@repo/redis": "workspace:*"
+    "@repo/redis": "workspace:*",
+    "@repo/market": "workspace:*"
   },
   "peerDependencies": {
     "typescript": "^5"

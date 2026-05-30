@@ -23,6 +23,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   orders    Order[]
+  positions Position[]
   wallet    Wallet?
 
   @@index([email])
@@ -52,10 +53,16 @@ enum OrderStatus {
   REJECTED
 }
 
+enum PositionStatus {
+  OPEN
+  CLOSED
+}
+
 model Order {
   id           Int        @id @default(autoincrement())
   userId       Int
   user         User       @relation(fields: [userId],references: [id])
+  position     Position?
   orderType    OrderType
   side         OrderSide
   symbol       Symbol
@@ -69,10 +76,42 @@ model Order {
   closePrice   Decimal?
   executedAt   DateTime?
   closeTime    DateTime?
-  profitLoss   Decimal?
   status       OrderStatus
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([symbol])
+}
+
+model Position {
+  id            Int @id @default(autoincrement())
+
+  userId        Int
+  user          User @relation(fields: [userId], references: [id])
+
+  orderId       Int @unique
+  order         Order @relation(fields: [orderId], references: [id])
+
+  symbol        Symbol
+  side          OrderSide
+
+  qty           Decimal
+
+  leverage      Int
+
+  entryPrice    Decimal
+
+  liquidationPrice Decimal?
+
+  unrealizedPnl Decimal @default(0)
+  realizedPnl   Decimal @default(0)
+
+  status        PositionStatus
+
+  openedAt      DateTime @default(now())
+  closedAt      DateTime?
 
   @@index([userId])
   @@index([status])

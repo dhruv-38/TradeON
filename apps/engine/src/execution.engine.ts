@@ -1,4 +1,5 @@
-import { prisma, OrderStatus, Prisma } from "@repo/db";
+import { prisma, OrderStatus, Prisma, PositionStatus } from "@repo/db";
+import { getMarketPrice } from "./price.service.js";
 
 export const executeOrder = async (orderId: number) => {
   const order = await prisma.order.findUnique({
@@ -11,25 +12,36 @@ export const executeOrder = async (orderId: number) => {
     throw new Error("Order already processed");
   }
 
-  // TEMP market price
-  const marketPrice = 100000;
+  
+  const marketPrice = await getMarketPrice(order.symbol,order.side);
 
-  const updatedOrder = await prisma.order.update({
-      where: {
-        id: order.id,
-      },
+  return await prisma.$transaction(async (tx) => {
+  const updatedOrder = await tx.order.update({
+    where: {
+      id: order.id,
+    },
+    data: {
+      status: OrderStatus.FILLED,
+      executionPrice: new Prisma.Decimal(marketPrice),
+      executedAt: new Date(),
+    },
+  });
 
-      data: {
-        status: OrderStatus.FILLED,
+  const position = await tx.position.create({
+    data: {
+      userId: order.userId,
+      orderId: order.id,
+      symbol: order.symbol,
+      side: order.side,
+      qty: order.qty,
+      leverage: order.leverage,
+      entryPrice: new Prisma.Decimal(marketPrice),
+      status: PositionStatus.OPEN,
+    },
+  });
 
-        executionPrice:
-          new Prisma.Decimal(
-            marketPrice
-          ),
-
-        executedAt: new Date(),
-      },
-    });
-
-  return updatedOrder;
+  return { order: updatedOrder, position };
+});
 };
+
+console.log(`Order ${message.message.orderId} executed`);
