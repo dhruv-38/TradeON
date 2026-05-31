@@ -33,3 +33,14 @@ export const createOrder = async (data: CreateOrderRepositoryInput) => {
     },
   });
 };
+
+export const getOrders = async (userId: number) => {
+  return prisma.order.findMany({
+    where: {
+      userId,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+};

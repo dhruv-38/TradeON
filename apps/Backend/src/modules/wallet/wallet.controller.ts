@@ -4,7 +4,7 @@ import { DepositSchema, WithdrawSchema } from "@repo/schemas-types";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 
 import { ValidationError } from "../../lib/errors/ValidationError.js";
-import { depositFundsService, withdrawFundsService } from "./wallet.service.js";
+import { depositFundsService, getLedgerService, withdrawFundsService } from "./wallet.service.js";
 
 export const depositController = asyncHandler(async (
   req: Request,
@@ -40,4 +40,13 @@ export const withdrawController = asyncHandler(async (req: Request, res: Respons
       "Funds Withdraw successfully",
     wallet,
   });
-})
+});
+
+export const getLedgerController = asyncHandler(async (req: Request,res: Response) => {
+      const entries = await getLedgerService(req.user.id);
+      return res.json({
+        success: true,
+        data: entries,
+      });
+    }
+  );

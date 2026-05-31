@@ -104,6 +104,8 @@ model Position {
 
   entryPrice    Decimal
 
+  marginUsed    Decimal
+
   liquidationPrice Decimal?
 
   unrealizedPnl Decimal @default(0)

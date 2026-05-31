@@ -193,3 +193,24 @@ export const releaseFunds = async (userId: number, amount: number) => {
         return wallet;
     })
 };
+
+export const getLedgerEntries = async (userId: number) => {
+    const wallet = await prisma.wallet.findUnique({
+        where: {
+          userId,
+        },
+      });
+
+    if (!wallet) {
+      throw new Error("Wallet not found");
+    }
+
+    return prisma.ledgerEntry.findMany({
+      where: {
+        walletId: wallet.id,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+  };

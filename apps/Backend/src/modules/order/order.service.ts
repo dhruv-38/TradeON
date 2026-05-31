@@ -1,6 +1,6 @@
 import { CreateOrderInput } from "@repo/schemas-types";
 import { reserveFunds } from "../wallet/wallet.repository.js";
-import { createOrder } from "./order.repository.js";
+import { createOrder, getOrders } from "./order.repository.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import {redis, REDIS_STREAMS} from "@repo/redis";
 import {getMarketPrice} from "@repo/market";
@@ -46,3 +46,7 @@ export const createOrderService = async (userId: number,data: CreateOrderInput) 
 
   return {order};
 };
+
+export const getOrdersService = async (userId: number) => {
+    return getOrders(userId);
+  };

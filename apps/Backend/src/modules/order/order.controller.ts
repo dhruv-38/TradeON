@@ -1,6 +1,6 @@
 import type { Request, Response} from "express";
 import { CreateOrderSchema } from "@repo/schemas-types";
-import { createOrderService } from "./order.service.js";
+import { createOrderService, getOrdersService } from "./order.service.js";
 import { ValidationError } from "../../lib/errors/ValidationError.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 
@@ -16,3 +16,12 @@ export const createOrderController = asyncHandler(async (req: Request,res: Respo
       data: order,
     });
   });
+
+export const getOrdersController = asyncHandler(async (req: Request,res: Response) => {
+  const orders = await getOrdersService(req.user.id);
+      return res.json({
+        success: true,
+        data: orders,
+      });
+    }
+  );

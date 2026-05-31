@@ -9,6 +9,10 @@ async function createGroup() {
         {
             MKSTREAM: true,
         });
+      // await redis.xGroupCreate("market-events","engine-group","$",
+      //   {
+      //     MKSTREAM: true
+      //   });
 
     console.log("Consumer group created");
   } catch (err: any) {

@@ -20,7 +20,7 @@ let count =0;
 ws.on("message", async (raw) => {
   try {
     const message = JSON.parse(raw.toString());
-    if (count < 10) {
+    if (count < 3) {
     console.log(JSON.stringify(message, null, 2));
     count++;
   }
@@ -43,6 +43,10 @@ ws.on("message", async (raw) => {
     switch (data.s) {
       case "BTC_USDC":
         await redis.set( REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
+        // await redis.xAdd("market-events","*",{
+        //   event: "market.price.updated",
+        //   symbol: data.s
+        // });
         break;
 
       case "ETH_USDC":
