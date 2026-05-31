@@ -1,36 +1,36 @@
 import WebSocket from "ws";
-import {config} from "@repo/config";
-import {redis, REDIS_KEYS} from "@repo/redis"
+import { config } from "@repo/config";
+import { redis, REDIS_KEYS } from "@repo/redis"
 
 const ws = new WebSocket(config.BACKPACK_WS_URL);
 
 ws.on("open", () => {
   console.log("Connected");
   ws.send(JSON.stringify({
-      method: "SUBSCRIBE",
-      params: [
-        "bookTicker.BTC_USDC",
-        "bookTicker.ETH_USDC",
-        "bookTicker.SOL_USDC",
-      ],
-    }));
+    method: "SUBSCRIBE",
+    params: [
+      "bookTicker.BTC_USDC",
+      "bookTicker.ETH_USDC",
+      "bookTicker.SOL_USDC",
+    ],
+  }));
 });
 
-let count =0;
+let count = 0;
 ws.on("message", async (raw) => {
   try {
     const message = JSON.parse(raw.toString());
     if (count < 3) {
-    console.log(JSON.stringify(message, null, 2));
-    count++;
-  }
-    
-    if ( !message.stream || !message.data ) {
+      console.log(JSON.stringify(message, null, 2));
+      count++;
+    }
+
+    if (!message.stream || !message.data) {
       return;
     }
     const data = message.data;
 
-    if ( data.e !== "bookTicker" ) {
+    if (data.e !== "bookTicker") {
       return;
     }
 
@@ -39,14 +39,17 @@ ws.on("message", async (raw) => {
       ask: Number(data.a),
       timestamp: Date.now(),
     };
-    
+
     switch (data.s) {
       case "BTC_USDC":
-        await redis.set( REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
-        // await redis.xAdd("market-events","*",{
-        //   event: "market.price.updated",
-        //   symbol: data.s
-        // });
+        await redis.set(REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
+        await redis.xAdd("market-events", "*",
+          {
+            event:"market.price.updated",
+            symbol: data.s,
+            price:String(payload.ask),
+          }
+        );
         break;
 
       case "ETH_USDC":
@@ -54,7 +57,7 @@ ws.on("message", async (raw) => {
         break;
 
       case "SOL_USDC":
-        await redis.set( REDIS_KEYS.SOL_USDC, JSON.stringify(payload));
+        await redis.set(REDIS_KEYS.SOL_USDC, JSON.stringify(payload));
         break;
     }
   } catch (error) {

@@ -1,5 +1,6 @@
 import { redis, REDIS_STREAMS, REDIS_GROUPS } from "@repo/redis";
 import { executeOrder } from "./execution.engine.js";
+import {startMarketConsumer} from "./market.consumer.js";
 
 const consumerName = "engine-1";
 
@@ -9,10 +10,6 @@ async function createGroup() {
         {
             MKSTREAM: true,
         });
-      // await redis.xGroupCreate("market-events","engine-group","$",
-      //   {
-      //     MKSTREAM: true
-      //   });
 
     console.log("Consumer group created");
   } catch (err: any) {
@@ -62,4 +59,5 @@ await createGroup();
 
 console.log("Engine consumer started...");
 
-await startConsumer();
+void startConsumer();
+void startMarketConsumer();
