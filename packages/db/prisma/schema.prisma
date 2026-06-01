@@ -56,6 +56,7 @@ enum OrderStatus {
 enum PositionStatus {
   OPEN
   CLOSED
+  LIQUIDATED
 }
 
 model Order {
@@ -108,6 +109,8 @@ model Position {
 
   liquidationPrice Decimal?
 
+  maintenanceMargin Decimal @default(0)
+
   unrealizedPnl Decimal @default(0)
   realizedPnl   Decimal @default(0)
 
@@ -127,8 +130,7 @@ enum LedgerType {
   ORDER_RESERVE
   ORDER_RELEASE
   TRADE
-  FEE
-  REFUND
+  LIQUIDATION
 }
 
 enum LedgerStatus {

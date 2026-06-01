@@ -1,5 +1,6 @@
 import { redis } from "@repo/redis";
 import { checkTpSl } from "./tpsl.engine.js";
+import { checkLiquidations } from "./liquidation.engine.js";
 
 const STREAM = "market-events";
 
@@ -42,6 +43,7 @@ export const startMarketConsumer = async () => {
           const price =Number(message.message.price);
 
           await checkTpSl(symbol,price);
+          await checkLiquidations(symbol,price);
 
           await redis.xAck(STREAM,GROUP,message.id);
         }

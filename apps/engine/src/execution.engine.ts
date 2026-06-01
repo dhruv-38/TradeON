@@ -1,4 +1,4 @@
-import { prisma, OrderStatus, Prisma, PositionStatus, LedgerType, LedgerStatus } from "@repo/db";
+import { prisma, OrderStatus, Prisma, PositionStatus, LedgerType, LedgerStatus, OrderSide } from "@repo/db";
 import { getMarketPrice } from "@repo/market";
 
 const rejectOrder = async (tx: Prisma.TransactionClient, orderId: number) => {
@@ -108,6 +108,14 @@ export const executeOrder = async (orderId: number) => {
       },
     });
 
+    const maintenanceMarginRate = 0.01;
+    let liquidationPrice: number;
+
+    if (order.side === OrderSide.BUY) {
+      liquidationPrice = marketPrice * (1 -((1 / order.leverage) -maintenanceMarginRate));
+    } else {
+      liquidationPrice = marketPrice *(1 +((1 / order.leverage) -maintenanceMarginRate));
+    }
     const position = await tx.position.create({
       data: {
         userId: order.userId,
@@ -117,7 +125,8 @@ export const executeOrder = async (orderId: number) => {
         qty: order.qty,
         leverage: order.leverage,
         marginUsed: order.marginUsed,
-        liquidationPrice: null,
+        liquidationPrice: new Prisma.Decimal(liquidationPrice),
+        maintenanceMargin: new Prisma.Decimal(maintenanceMarginRate),
         entryPrice: new Prisma.Decimal(marketPrice),
         status: PositionStatus.OPEN,
       },
