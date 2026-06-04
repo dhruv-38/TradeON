@@ -185,6 +185,21 @@
         "@repo/typescript-config": "workspace:*",
       },
     },
+    "packages/timescaledb": {
+      "name": "@repo/timescaledb",
+      "dependencies": {
+        "pg": "^8.21.0",
+      },
+      "devDependencies": {
+        "@repo/config": "workspace:*",
+        "@repo/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "@types/pg": "^8.20.0",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "packages/typescript-config": {
       "name": "@repo/typescript-config",
       "version": "0.0.0",
@@ -389,6 +404,8 @@
     "@repo/redis": ["@repo/redis@workspace:packages/redis"],
 
     "@repo/schemas-types": ["@repo/schemas-types@workspace:packages/schemas-types"],
+
+    "@repo/timescaledb": ["@repo/timescaledb@workspace:packages/timescaledb"],
 
     "@repo/typescript-config": ["@repo/typescript-config@workspace:packages/typescript-config"],
 

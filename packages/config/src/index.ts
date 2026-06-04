@@ -14,7 +14,9 @@ const EnvSchema = z.object({
 
   NODE_ENV: z.string(),
 
-  BACKPACK_WS_URL: z.string()
+  BACKPACK_WS_URL: z.string(),
+
+  TIMESCALE_DATABASE_URL: z.string()
 });
 
 const parsedEnv = EnvSchema.safeParse(process.env);
