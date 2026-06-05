@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 import { config } from "@repo/config";
-import { redis, REDIS_KEYS } from "@repo/redis"
+import { redis, REDIS_KEYS, REDIS_STREAMS } from "@repo/redis"
 
 const ws = new WebSocket(config.BACKPACK_WS_URL);
 
@@ -43,21 +43,68 @@ ws.on("message", async (raw) => {
     switch (data.s) {
       case "BTC_USDC":
         await redis.set(REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
-        await redis.xAdd("market-events", "*",
+        await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
           {
-            event:"market.price.updated",
+            event: "market.price.updated",
             symbol: data.s,
-            price:String(payload.ask),
+            price: String(payload.ask),
+          }
+        );
+        await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM,"*",
+          {
+            symbol: data.s,
+
+            bid: String(payload.bid),
+
+            ask: String(payload.ask),
+
+            timestamp:String(payload.timestamp),
           }
         );
         break;
 
       case "ETH_USDC":
         await redis.set(REDIS_KEYS.ETH_USDC, JSON.stringify(payload));
+        await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
+          {
+            event: "market.price.updated",
+            symbol: data.s,
+            price: String(payload.ask),
+          }
+        );
+        await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM,"*",
+          {
+            symbol: data.s,
+
+            bid: String(payload.bid),
+
+            ask: String(payload.ask),
+
+            timestamp:String(payload.timestamp),
+          }
+        );
         break;
 
       case "SOL_USDC":
         await redis.set(REDIS_KEYS.SOL_USDC, JSON.stringify(payload));
+        await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
+          {
+            event: "market.price.updated",
+            symbol: data.s,
+            price: String(payload.ask),
+          }
+        );
+        await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM,"*",
+          {
+            symbol: data.s,
+
+            bid: String(payload.bid),
+
+            ask: String(payload.ask),
+
+            timestamp:String(payload.timestamp),
+          }
+        );
         break;
     }
   } catch (error) {
