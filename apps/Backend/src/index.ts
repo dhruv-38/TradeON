@@ -10,6 +10,7 @@ import { walletRouter } from './modules/wallet/wallet.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { orderRouter } from './modules/order/order.routes.js';
 import { positionRouter } from './modules/position/position.routes.js';
+import { marketRouter } from './modules/market/market.routes.js';
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/wallet', walletRouter);
 app.use('/api/v1/orders',orderRouter);
 app.use("/api/v1/positions",positionRouter);
+app.use("/api/v1/market",marketRouter);
 app.get("/test-race", async (req, res) => {
 
   const responses = await Promise.all([

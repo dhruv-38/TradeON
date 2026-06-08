@@ -4,6 +4,8 @@ export const REDIS_STREAMS = {
   MARKET_EVENTS_STREAM:"market-events",
 
   MARKET_TICKS_STREAM:"market-ticks",
+  
+  USER_EVENTS_STREAM: "user-events"
 } as const;
 
 export const REDIS_GROUPS = {

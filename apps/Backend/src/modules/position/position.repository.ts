@@ -1,5 +1,6 @@
 import { prisma, PositionStatus, OrderStatus, Prisma, LedgerType, LedgerStatus } from "@repo/db";
 import { getMarketPrice } from "@repo/market";
+import { publishUserEvent } from "@repo/redis";
 
 
 const releaseFundsTx = async (tx: Prisma.TransactionClient, userId: number, amount: number) => {
@@ -79,7 +80,7 @@ export const closePosition = async (userId: number, positionId: number) => {
         pnl = (Number(position.entryPrice) - marketPrice) * Number(position.qty);
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
         await releaseFundsTx(tx, userId, Number(position.marginUsed));
         const wallet = await tx.wallet.findUnique({
             where: {
@@ -135,16 +136,22 @@ export const closePosition = async (userId: number, positionId: number) => {
         return updatedPosition;
     }
     );
+    await publishUserEvent(userId,"position.closed",
+        {
+            positionId: String(result.id),
+        }
+    );
+    return result;
 };
 
 export const getClosedPositions = async (userId: number) => {
-  return prisma.position.findMany({
-    where: {
-      userId,
-      status: PositionStatus.CLOSED,
-    },
-    orderBy: {
-      closedAt: "desc",
-    },
-  });
+    return prisma.position.findMany({
+        where: {
+            userId,
+            status: PositionStatus.CLOSED,
+        },
+        orderBy: {
+            closedAt: "desc",
+        },
+    });
 };
