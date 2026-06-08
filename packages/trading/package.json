@@ -1,19 +1,19 @@
 {
-  "name": "ws",
+  "name": "@repo/trading",
   "module": "index.ts",
   "type": "module",
   "private": true,
   "devDependencies": {
     "@types/bun": "latest",
     "@repo/typescript-config": "workspace:*",
-    "@repo/redis": "workspace:*",
-    "@repo/db": "workspace:*"
+    "@repo/db": "workspace:*",
+    "@repo/market": "workspace:*",
+    "@repo/redis": "workspace:*"
+  },
+  "exports":{
+    ".":"./src/index.ts"
   },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "dependencies": {
-    "@types/ws": "^8.18.1",
-    "ws": "^8.21.0"
   }
 }

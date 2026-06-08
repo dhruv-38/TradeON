@@ -1,5 +1,5 @@
-import {getOpenPositions,closePosition, getClosedPositions } from "./position.repository.js";
-
+import {getOpenPositions, getClosedPositions } from "./position.repository.js";
+import { closePosition } from "@repo/trading"
 export const getPositionsService = async (userId: number) => {
     return getOpenPositions(userId);
   };

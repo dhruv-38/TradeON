@@ -1,4 +1,5 @@
 import { prisma, PositionStatus, OrderSide, LedgerType, LedgerStatus } from "@repo/db";
+import { publishUserEvent } from "@repo/redis";
 
 export const checkLiquidations = async (symbol: string, currentPrice: number) => {
     const positions = await prisma.position.findMany({
@@ -19,6 +20,11 @@ export const checkLiquidations = async (symbol: string, currentPrice: number) =>
                 console.log(`LIQUIDATED ${position.id}`);
 
                 await liquidatePosition(position.id);
+                await publishUserEvent(position.userId, "position.liquidated",
+                    {
+                        positionId: String(position.id),
+                    }
+                );
             }
         }
 
@@ -26,6 +32,12 @@ export const checkLiquidations = async (symbol: string, currentPrice: number) =>
             if (currentPrice >= Number(position.liquidationPrice)) {
                 console.log(`LIQUIDATED ${position.id}`);
                 await liquidatePosition(position.id);
+                await publishUserEvent(position.userId, "position.liquidated",
+                    {
+                        positionId: String(position.id),
+                    }
+                );
+
             }
         }
         // console.log({

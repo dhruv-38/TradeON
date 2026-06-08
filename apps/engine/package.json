@@ -8,7 +8,8 @@
     "@repo/typescript-config":"workspace:*",
     "@repo/redis":"workspace:*",
     "@repo/db":"workspace:*",
-    "@repo/market":"workspace:*"
+    "@repo/market":"workspace:*",
+    "@repo/trading":"workspace:*"
     
   },
   "peerDependencies": {
