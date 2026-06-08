@@ -16,6 +16,10 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+  }));
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/wallet', walletRouter);
@@ -61,16 +65,11 @@ app.get("/test-race", async (req, res) => {
 });
 
 
-app.get("/", async (req, res) => {
-  const users = await prisma.user.findMany()
-  console.log(users);
-  res.json(users);
-  // const a = new Prisma.Decimal("0.1")
-  // const b = new Prisma.Decimal("0.2")
-
-  // console.log(a.plus(b).toString())
-  // res.json({
-  // amount: new Prisma.Decimal("100.55")
+app.get("/health", (req, res) => {
+  console.log("Running perfect");
+  res.json({
+    status:"perfect"
+  });
 });
 
 app.use(errorMiddleware);
