@@ -9,6 +9,9 @@
     "@repo/redis": "workspace:*",
     "@repo/db": "workspace:*"
   },
+  "scripts": {
+    "dev": "bun run --watch src/index.ts"
+  },
   "peerDependencies": {
     "typescript": "^5"
   },

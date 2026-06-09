@@ -10,6 +10,9 @@
     "@types/bun": "latest",
     "@types/ws": "^8.18.1"
   },
+  "scripts": {
+    "dev": "bun run --watch src/index.ts"
+  },
   "peerDependencies": {
     "typescript": "^5"
   },

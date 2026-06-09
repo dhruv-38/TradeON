@@ -1,7 +1,7 @@
 import { AppShell } from "../../components/layout/app-shell";
-import { LoginForm } from "../../features/auth/components/login-form";
+import { SignupForm } from "../../features/auth/components/signup-form";
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <AppShell>
       <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
@@ -11,18 +11,17 @@ export default function LoginPage() {
           </p>
           <div className="space-y-3">
             <h1 className="text-4xl font-semibold tracking-tight">
-              Start with a clean login flow.
+              Add signup before building the dashboard.
             </h1>
             <p className="max-w-xl text-base leading-7 text-[var(--color-text-muted)]">
-              This screen is intentionally simple. The goal is to practice
-              separating page layout, feature logic, API calls, and shared state
-              instead of putting everything in one file. Once login and signup
-              are stable, we can move into the dashboard.
+              A complete auth flow teaches better frontend habits than a single
+              login screen. This page mirrors the login structure so you can see
+              how reusable patterns should look in a growing app.
             </p>
           </div>
         </div>
 
-        <LoginForm />
+        <SignupForm />
       </section>
     </AppShell>
   );

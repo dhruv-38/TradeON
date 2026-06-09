@@ -26,6 +26,9 @@
     }, 
     "db:deploy": { 
       "cache": false
+    },
+    "timescale:schema": {
+      "cache": false
     }
   }
 }

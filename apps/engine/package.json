@@ -12,6 +12,9 @@
     "@repo/trading":"workspace:*"
     
   },
+  "scripts": {
+    "dev": "bun run --watch src/index.ts"
+  },
   "peerDependencies": {
     "typescript": "^5"
   }

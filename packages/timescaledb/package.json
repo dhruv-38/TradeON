@@ -9,6 +9,9 @@
     "@types/bun": "latest",
     "@types/pg": "^8.20.0"
   },
+  "scripts": {
+    "timescale:schema": "bun run src/run-schema.ts"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

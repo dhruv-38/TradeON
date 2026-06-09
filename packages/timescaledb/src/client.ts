@@ -1,13 +1,13 @@
-import { Pool } from "pg";
-import {config} from "@repo/config"
+import {Pool,type PoolClient,type QueryResult,type QueryResultRow} from "pg";
+import { config } from "@repo/config";
 
 export const timescale = new Pool({
-  connectionString:config.TIMESCALE_DATABASE_URL,
+  connectionString: config.TIMESCALE_DATABASE_URL,
 
   // Pool sizing - adjust based on your workload
-  max: 20,                    // Maximum connections in pool
-  min: 5,                     // Minimum connections to maintain
-  idleTimeoutMillis: 30000,   // Close idle connections after 30 seconds
+  max: 20, // Maximum connections in pool
+  min: 5, // Minimum connections to maintain
+  idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
   connectionTimeoutMillis: 5000, // Timeout for new connections
 });
 
@@ -20,35 +20,27 @@ export const timescale = new Pool({
 //   console.error('Unexpected pool error:', err);
 // });
 
-// // Helper function for single queries
-// async function query(text, params) {
-//   const start = Date.now();
-//   const result = await pool.query(text, params);
-//   const duration = Date.now() - start;
+export async function query<T extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[],
+): Promise<QueryResult<T>> {
+  return timescale.query<T>(text, params);
+}
 
-//   // Log slow queries for optimization
-//   if (duration > 100) {
-//     console.log('Slow query:', { text, duration, rows: result.rowCount });
-//   }
+export async function withTransaction<T>(
+  callback: (client: PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await timescale.connect();
 
-//   return result;
-// }
-
-// // Helper for transactions
-// async function withTransaction(callback) {
-//   const client = await timescale.connect();
-//   try {
-//     await client.query('BEGIN');
-//     const result = await callback(client);
-//     await client.query('COMMIT');
-//     return result;
-//   } catch (error) {
-//     await client.query('ROLLBACK');
-//     throw error;
-//   } finally {
-//     client.release();
-//   }
-// }
-
-
-// export {timescale,query,withTransaction};
+  try {
+    await client.query("BEGIN");
+    const result = await callback(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

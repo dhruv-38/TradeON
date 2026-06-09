@@ -1,15 +1,10 @@
 import { create } from "zustand";
-
-type User = {
-  id: number;
-  name: string;
-  email: string;
-};
+import type { AuthUser } from "../features/auth/types";
 
 type AuthStore = {
-  user: User | null;
+  user: AuthUser | null;
 
-  setUser: (user: User) => void;
+  setUser: (user: AuthUser) => void;
 
   logout: () => void;
 };

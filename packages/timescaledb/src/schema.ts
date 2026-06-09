@@ -1,67 +1,98 @@
-// import {query,withTransaction} from "./client.js"
-// async function createSchema() {
-//   await withTransaction(async (client) => {
-//     // Enable TimescaleDB extension
-//     await client.query(`
-//       CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
-//     `);
+import { query, withTransaction } from "./client.js";
 
-//     // Create the base table for sensor readings
-//     // Note: We use TIMESTAMPTZ for proper timezone handling
-//     await client.query(`
-//       CREATE TABLE IF NOT EXISTS sensor_readings (
-//         time        TIMESTAMPTZ NOT NULL,
-//         sensor_id   TEXT NOT NULL,
-//         location    TEXT,
-//         temperature DOUBLE PRECISION,
-//         humidity    DOUBLE PRECISION,
-//         pressure    DOUBLE PRECISION,
-//         battery     DOUBLE PRECISION,
-//         metadata    JSONB DEFAULT '{}'::jsonb
-//       );
-//     `);
+export async function createSchema() {
+  await withTransaction(async (client) => {
+    await client.query(`
+      CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
+    `);
 
-//     // Convert to hypertable with 1-day chunks
-//     // chunk_time_interval determines partition size
-//     await client.query(`
-//       SELECT create_hypertable(
-//         'sensor_readings',
-//         'time',
-//         chunk_time_interval => INTERVAL '1 day',
-//         if_not_exists => TRUE
-//       );
-//     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ticks (
+        time TIMESTAMPTZ NOT NULL,
+        symbol TEXT NOT NULL,
+        bid NUMERIC NOT NULL,
+        ask NUMERIC NOT NULL
+      );
+    `);
 
-//     // Create indexes for common query patterns
-//     // Compound index on sensor_id and time speeds up device-specific queries
-//     await client.query(`
-//       CREATE INDEX IF NOT EXISTS idx_sensor_readings_sensor_time
-//       ON sensor_readings (sensor_id, time DESC);
-//     `);
+    await client.query(`
+      SELECT create_hypertable(
+        'ticks',
+        'time',
+        if_not_exists => TRUE
+      );
+    `);
 
-//     // Index for location-based queries
-//     await client.query(`
-//       CREATE INDEX IF NOT EXISTS idx_sensor_readings_location
-//       ON sensor_readings (location, time DESC);
-//     `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_ticks_symbol_time
+      ON ticks (symbol, time DESC);
+    `);
 
-//     console.log('Schema created successfully');
-//   });
-// }
+    await client.query(`
+      DO $$
+      BEGIN
+        BEGIN
+          EXECUTE $view$
+            CREATE MATERIALIZED VIEW candles_1m
+            WITH (timescaledb.continuous) AS
+            SELECT
+              time_bucket('1 minute', time) AS bucket,
+              symbol,
+              first(ask, time) AS open,
+              max(ask) AS high,
+              min(ask) AS low,
+              last(ask, time) AS close
+            FROM ticks
+            GROUP BY bucket, symbol
+            WITH NO DATA
+          $view$;
+        EXCEPTION
+          WHEN duplicate_table THEN NULL;
+        END;
+      END
+      $$;
+    `);
 
-// // Create table for device metadata
-// async function createDeviceTable() {
-//   await query(`
-//     CREATE TABLE IF NOT EXISTS devices (
-//       sensor_id   TEXT PRIMARY KEY,
-//       name        TEXT NOT NULL,
-//       location    TEXT,
-//       device_type TEXT,
-//       installed   TIMESTAMPTZ DEFAULT NOW(),
-//       active      BOOLEAN DEFAULT TRUE,
-//       config      JSONB DEFAULT '{}'::jsonb
-//     );
-//   `);
-// }
+    await client.query(`
+      DO $$
+      BEGIN
+        BEGIN
+          EXECUTE $view$
+            CREATE MATERIALIZED VIEW candles_5m
+            WITH (timescaledb.continuous) AS
+            SELECT
+              time_bucket('5 minutes', time) AS bucket,
+              symbol,
+              first(ask, time) AS open,
+              max(ask) AS high,
+              min(ask) AS low,
+              last(ask, time) AS close
+            FROM ticks
+            GROUP BY bucket, symbol
+            WITH NO DATA
+          $view$;
+        EXCEPTION
+          WHEN duplicate_table THEN NULL;
+        END;
+      END
+      $$;
+    `);
 
-// module.exports = { createSchema, createDeviceTable };
+    await client.query(`
+      SELECT add_continuous_aggregate_policy(
+        'candles_1m',
+        start_offset => INTERVAL '1 day',
+        end_offset => INTERVAL '1 minute',
+        schedule_interval => INTERVAL '30 seconds',
+        if_not_exists => TRUE
+      );
+    `);
+
+    console.log("TimescaleDB schema created successfully");
+  });
+}
+
+export async function refreshCandles() {
+  await query("CALL refresh_continuous_aggregate('candles_1m', NULL, NULL);");
+  await query("CALL refresh_continuous_aggregate('candles_5m', NULL, NULL);");
+}
