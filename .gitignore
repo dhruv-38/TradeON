@@ -33,6 +33,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Local Codex and verification artifacts
+.codex/
+.codex-*/
+.codex-*.log
+dashboard-preview.png
+
 # Misc
 .DS_Store
 *.pem

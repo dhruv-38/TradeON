@@ -5,6 +5,7 @@ import { getCandlesService } from "./market.service.js";
 export const getCandlesController = asyncHandler(async (req: Request, res: Response) => {
       const symbol = String(req.query.symbol);
       const limit = Number(req.query.limit) || 500;
+      const interval = String(req.query.interval || "1m");
 
       if (!symbol) {
         return res.status(400).json({
@@ -13,7 +14,7 @@ export const getCandlesController = asyncHandler(async (req: Request, res: Respo
         });
       }
 
-      const candles = await getCandlesService(symbol,limit);
+      const candles = await getCandlesService(symbol, limit, interval);
 
       return res.json({
         success: true,

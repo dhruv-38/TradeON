@@ -25,6 +25,7 @@ export const protectRoute = async (req: Request, res: Response, next: NextFuncti
         req.user = {
             id: user.id,
             email: user.email,
+            name: user.name,
         };
         next(); 
     } catch (error) {

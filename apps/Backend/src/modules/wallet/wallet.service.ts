@@ -1,5 +1,16 @@
 import { DepositInput, ReserveInput, WithdrawInput } from "@repo/schemas-types";
-import { depositFunds, getLedgerEntries, releaseFunds, reserveFunds, withdrawFunds } from "./wallet.repository.js";
+import {
+  depositFunds,
+  findWalletByUserId,
+  getLedgerEntries,
+  releaseFunds,
+  reserveFunds,
+  withdrawFunds,
+} from "./wallet.repository.js";
+
+export const getWalletService = async (userId: number) => {
+  return findWalletByUserId(userId);
+};
 
 export const depositFundsService = async(userId:number,data:DepositInput)=>{
     const {amount} = data;

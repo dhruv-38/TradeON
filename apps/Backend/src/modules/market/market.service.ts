@@ -1,5 +1,5 @@
 import { getCandles } from "./market.repository.js";
 
-export const getCandlesService = async (symbol: string, limit: number) => {
-  return getCandles(symbol, limit);
+export const getCandlesService = async (symbol: string, limit: number, interval: string) => {
+  return getCandles(symbol, limit, interval);
 };

@@ -55,3 +55,23 @@ export const loginController = asyncHandler(async (req: Request, res: Response) 
     },
   })
 });
+
+export const getCurrentUserController = asyncHandler(async (req: Request, res: Response) => {
+  return res.json({
+    success: true,
+    user: req.user,
+  });
+});
+
+export const logoutController = asyncHandler(async (_req: Request, res: Response) => {
+  res.clearCookie("jwt", {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: config.NODE_ENV !== "development",
+  });
+
+  return res.json({
+    success: true,
+    message: "Logged out successfully",
+  });
+});

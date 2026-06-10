@@ -1,21 +1,20 @@
 import { create } from "zustand";
-import type { AuthUser } from "../features/auth/types";
 
-type AuthStore = {
-  user: AuthUser | null;
-
-  setUser: (user: AuthUser) => void;
-
-  logout: () => void;
+export type AuthUser = {
+  id: number;
+  name: string;
+  email: string;
+  walletid?: number;
 };
 
-export const useAuthStore =
-  create<AuthStore>((set) => ({
-    user: null,
+type AuthState = {
+  user: AuthUser | null;
+  setUser: (user: AuthUser) => void;
+  clearUser: () => void;
+};
 
-    setUser: (user) =>
-      set({ user }),
-
-    logout: () =>
-      set({ user: null }),
-  }));
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  setUser: (user) => set({ user }),
+  clearUser: () => set({ user: null }),
+}));
