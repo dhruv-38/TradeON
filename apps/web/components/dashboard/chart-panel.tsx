@@ -9,15 +9,17 @@ import {
   createChart,
   type CandlestickData,
   type HistogramData,
+  type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Candle, MarketPrice, Timeframe } from "../../features/dashboard/types";
 
 type ChartPanelProps = {
   candles: Candle[];
   livePrice: MarketPrice | null;
   timeframe: Timeframe;
+  loadedTimeframe: Timeframe;
   isLoading: boolean;
   onTimeframeChange: (timeframe: Timeframe) => void;
 };
@@ -26,11 +28,15 @@ export function ChartPanel({
   candles,
   livePrice,
   timeframe,
+  loadedTimeframe,
   isLoading,
   onTimeframeChange,
 }: ChartPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const latestCandle = candles.at(-1);
+  const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const liveCandleRef = useRef<CandlestickData<UTCTimestamp> | null>(null);
+  const lastTickTimestampRef = useRef(0);
+  const [liveCandle, setLiveCandle] = useState<CandlestickData<UTCTimestamp> | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -109,6 +115,10 @@ export function ChartPanel({
       lastValueVisible: true,
     });
     candleSeries.setData(candleData);
+    candleSeriesRef.current = candleSeries;
+    liveCandleRef.current = candleData.at(-1) ?? null;
+    lastTickTimestampRef.current = 0;
+    setLiveCandle(candleData.at(-1) ?? null);
 
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
@@ -123,8 +133,53 @@ export function ChartPanel({
       chart.timeScale().fitContent();
     }
 
-    return () => chart.remove();
+    return () => {
+      candleSeriesRef.current = null;
+      liveCandleRef.current = null;
+      chart.remove();
+    };
   }, [candles]);
+
+  useEffect(() => {
+    const candleSeries = candleSeriesRef.current;
+    if (!candleSeries || !livePrice) {
+      return;
+    }
+
+    if (livePrice.timestamp <= lastTickTimestampRef.current) {
+      return;
+    }
+
+    const price = livePrice.ask;
+    const bucketTime = getBucketTime(livePrice.timestamp, loadedTimeframe);
+    const current = liveCandleRef.current;
+    const currentTime = current ? Number(current.time) : null;
+
+    if (currentTime !== null && bucketTime < currentTime) {
+      return;
+    }
+
+    const nextCandle: CandlestickData<UTCTimestamp> =
+      current && currentTime === bucketTime
+        ? {
+            ...current,
+            high: Math.max(current.high, price),
+            low: Math.min(current.low, price),
+            close: price,
+          }
+        : {
+            time: bucketTime as UTCTimestamp,
+            open: current?.close ?? price,
+            high: price,
+            low: price,
+            close: price,
+          };
+
+    candleSeries.update(nextCandle);
+    lastTickTimestampRef.current = livePrice.timestamp;
+    liveCandleRef.current = nextCandle;
+    setLiveCandle(nextCandle);
+  }, [livePrice, loadedTimeframe]);
 
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-white">
@@ -159,14 +214,16 @@ export function ChartPanel({
       </div>
 
       <div className="flex h-9 shrink-0 items-center gap-3 border-b border-[#e7ecf0] bg-[#fafcfd] px-5 text-[11px]">
-        <span className="font-bold text-[#263747]">BTC/USDC · {timeframe} · TradeON</span>
-        {latestCandle ? (
+        <span className="font-bold text-[#263747]">
+          BTC/USDC · {loadedTimeframe} · TradeON
+        </span>
+        {liveCandle ? (
           <>
-            <span className="text-[#19c37d]">O {formatPrice(latestCandle.open)}</span>
-            <span className="text-[#19c37d]">H {formatPrice(latestCandle.high)}</span>
-            <span className="text-[#ef5350]">L {formatPrice(latestCandle.low)}</span>
-            <span className="text-[#19c37d]">
-              C {formatPrice(livePrice?.ask ?? latestCandle.close)}
+            <span className="text-[#19c37d]">O {formatPrice(liveCandle.open)}</span>
+            <span className="text-[#19c37d]">H {formatPrice(liveCandle.high)}</span>
+            <span className="text-[#ef5350]">L {formatPrice(liveCandle.low)}</span>
+            <span className={liveCandle.close >= liveCandle.open ? "text-[#19c37d]" : "text-[#ef5350]"}>
+              C {formatPrice(liveCandle.close)}
             </span>
           </>
         ) : null}
@@ -194,4 +251,18 @@ function formatPrice(value: string | number) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
+}
+
+function getBucketTime(timestamp: number, timeframe: Timeframe) {
+  const intervalSeconds: Record<Timeframe, number> = {
+    "1m": 60,
+    "5m": 5 * 60,
+    "1h": 60 * 60,
+    "4h": 4 * 60 * 60,
+    "1d": 24 * 60 * 60,
+  };
+  const timestampSeconds = Math.floor(timestamp / 1000);
+  const interval = intervalSeconds[timeframe];
+
+  return Math.floor(timestampSeconds / interval) * interval;
 }

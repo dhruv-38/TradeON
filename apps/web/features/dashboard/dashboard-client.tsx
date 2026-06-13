@@ -48,6 +48,7 @@ export function DashboardClient() {
   const [candles, setCandles] = useState<Candle[]>([]);
   const [livePrice, setLivePrice] = useState<MarketPrice | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
+  const [loadedTimeframe, setLoadedTimeframe] = useState<Timeframe>("1h");
   const [isAccountLoading, setIsAccountLoading] = useState(true);
   const [isChartLoading, setIsChartLoading] = useState(true);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
@@ -116,6 +117,7 @@ export function DashboardClient() {
       .then((data) => {
         if (isActive) {
           setCandles(data);
+          setLoadedTimeframe(timeframe);
           setConnectionError(null);
         }
       })
@@ -311,6 +313,7 @@ export function DashboardClient() {
             candles={candles}
             livePrice={livePrice}
             timeframe={timeframe}
+            loadedTimeframe={loadedTimeframe}
             isLoading={isChartLoading}
             onTimeframeChange={setTimeframe}
           />

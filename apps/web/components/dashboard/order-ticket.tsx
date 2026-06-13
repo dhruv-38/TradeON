@@ -131,6 +131,7 @@ export function OrderTicket({
           {isDepositOpen ? (
             <div className="flex gap-2 border-b border-[#e1e7ec] pb-3">
               <input
+                suppressHydrationWarning
                 type="number"
                 min="1"
                 step="any"
@@ -171,6 +172,7 @@ export function OrderTicket({
               <span>{positionPercent}%</span>
             </div>
             <input
+              suppressHydrationWarning
               aria-label="Position size"
               type="range"
               min="0"
@@ -194,6 +196,7 @@ export function OrderTicket({
               Leverage
             </span>
             <select
+              suppressHydrationWarning
               value={leverage}
               onChange={(event) => setLeverage(Number(event.target.value))}
               className="h-10 w-full rounded border border-[#d3dce4] bg-[#f8fafb] px-3 text-sm font-semibold text-[#263747] outline-none focus:border-[#6a89a7] focus:bg-white"
@@ -275,6 +278,7 @@ function OrderField({
       <span className="mb-1.5 block text-[11px] font-medium text-[#7b8d9d]">{label}</span>
       <div className="flex h-10 items-center rounded border border-[#d3dce4] bg-[#f8fafb] px-3 transition focus-within:border-[#6a89a7] focus-within:bg-white">
         <input
+          suppressHydrationWarning
           value={value}
           onChange={(event) => onChange(event.target.value)}
           type="number"
