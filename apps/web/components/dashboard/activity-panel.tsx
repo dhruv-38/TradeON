@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type {
   LedgerEntry,
-  MarketPrice,
+  LivePriceMap,
   Order,
   Position,
 } from "../../features/dashboard/types";
@@ -23,7 +23,7 @@ type ActivityPanelProps = {
   orders: Order[];
   positionHistory: Position[];
   ledger: LedgerEntry[];
-  livePrice: MarketPrice | null;
+  livePrices: LivePriceMap;
   isLoading: boolean;
   closingPositionId: number | null;
   onClosePosition: (positionId: number) => Promise<void>;
@@ -34,7 +34,7 @@ export function ActivityPanel({
   orders,
   positionHistory,
   ledger,
-  livePrice,
+  livePrices,
   isLoading,
   closingPositionId,
   onClosePosition,
@@ -70,7 +70,7 @@ export function ActivityPanel({
             orders={orders}
             positionHistory={positionHistory}
             ledger={ledger}
-            livePrice={livePrice}
+            livePrices={livePrices}
             closingPositionId={closingPositionId}
             onClosePosition={onClosePosition}
           />
@@ -86,7 +86,7 @@ function TabContent({
   orders,
   positionHistory,
   ledger,
-  livePrice,
+  livePrices,
   closingPositionId,
   onClosePosition,
 }: Omit<ActivityPanelProps, "isLoading"> & { activeTab: Tab }) {
@@ -109,15 +109,17 @@ function TabContent({
         ]}
       >
         {positions.map((position) => {
+          const symbolPrice = livePrices[position.symbol] ?? null;
           const markPrice =
-            position.side === "BUY" ? livePrice?.bid : livePrice?.ask;
+            position.side === "BUY" ? symbolPrice?.bid : symbolPrice?.ask;
           const pnl = calculatePnl(position, markPrice);
+          const asset = getBaseAsset(position.symbol);
 
           return (
             <tr key={position.id} className="border-b border-[#edf1f4] hover:bg-[#fafcfd]">
               <Cell strong>{formatSymbol(position.symbol)}</Cell>
               <SideCell side={position.side} />
-              <Cell>{formatNumber(position.qty)} BTC</Cell>
+              <Cell>{formatNumber(position.qty)} {asset}</Cell>
               <Cell>{formatPrice(position.entryPrice)}</Cell>
               <Cell>{formatPrice(markPrice)}</Cell>
               <Cell>{formatPrice(position.liquidationPrice)}</Cell>
@@ -159,7 +161,7 @@ function TabContent({
           <tr key={position.id} className="border-b border-[#edf1f4] hover:bg-[#fafcfd]">
             <Cell strong>{formatSymbol(position.symbol)}</Cell>
             <SideCell side={position.side} />
-            <Cell>{formatNumber(position.qty)} BTC</Cell>
+            <Cell>{formatNumber(position.qty)} {getBaseAsset(position.symbol)}</Cell>
             <Cell>{formatPrice(position.entryPrice)}</Cell>
             <PnlCell value={Number(position.realizedPnl)} />
             <Cell>{position.status}</Cell>
@@ -197,7 +199,7 @@ function OrdersTable({ orders }: { orders: Order[] }) {
           <Cell strong>{formatSymbol(order.symbol)}</Cell>
           <SideCell side={order.side} />
           <Cell>{order.orderType}</Cell>
-          <Cell>{formatNumber(order.qty)} BTC</Cell>
+          <Cell>{formatNumber(order.qty)} {getBaseAsset(order.symbol)}</Cell>
           <Cell>{formatPrice(order.executionPrice ?? order.expectedPrice)}</Cell>
           <Cell>{order.leverage}x</Cell>
           <Cell>{order.status}</Cell>
@@ -277,6 +279,10 @@ function calculatePnl(position: Position, markPrice?: number) {
 
 function formatSymbol(symbol: string) {
   return symbol.replace("_", "/");
+}
+
+function getBaseAsset(symbol: string) {
+  return symbol.split("_")[0] ?? symbol;
 }
 
 function formatNumber(value: string | number) {

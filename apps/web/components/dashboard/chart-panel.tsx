@@ -13,11 +13,17 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
-import type { Candle, MarketPrice, Timeframe } from "../../features/dashboard/types";
+import type {
+  Candle,
+  MarketPrice,
+  SymbolCode,
+  Timeframe,
+} from "../../features/dashboard/types";
 
 type ChartPanelProps = {
   candles: Candle[];
   livePrice: MarketPrice | null;
+  symbol: SymbolCode;
   timeframe: Timeframe;
   loadedTimeframe: Timeframe;
   isLoading: boolean;
@@ -27,6 +33,7 @@ type ChartPanelProps = {
 export function ChartPanel({
   candles,
   livePrice,
+  symbol,
   timeframe,
   loadedTimeframe,
   isLoading,
@@ -188,10 +195,16 @@ export function ChartPanel({
           <button type="button" className="h-full border-b-2 border-[#263747] text-[#263747]">
             Chart
           </button>
-          <button type="button" className="h-full border-b-2 border-transparent transition hover:text-[#263747]">
+          <button
+            type="button"
+            className="h-full border-b-2 border-transparent transition hover:text-[#263747]"
+          >
             Depth
           </button>
-          <button type="button" className="h-full border-b-2 border-transparent transition hover:text-[#263747]">
+          <button
+            type="button"
+            className="h-full border-b-2 border-transparent transition hover:text-[#263747]"
+          >
             Market Info
           </button>
         </div>
@@ -215,14 +228,18 @@ export function ChartPanel({
 
       <div className="flex h-9 shrink-0 items-center gap-3 border-b border-[#e7ecf0] bg-[#fafcfd] px-5 text-[11px]">
         <span className="font-bold text-[#263747]">
-          BTC/USDC · {loadedTimeframe} · TradeON
+          {formatSymbol(symbol)} · {loadedTimeframe} · TradeON
         </span>
         {liveCandle ? (
           <>
             <span className="text-[#19c37d]">O {formatPrice(liveCandle.open)}</span>
             <span className="text-[#19c37d]">H {formatPrice(liveCandle.high)}</span>
             <span className="text-[#ef5350]">L {formatPrice(liveCandle.low)}</span>
-            <span className={liveCandle.close >= liveCandle.open ? "text-[#19c37d]" : "text-[#ef5350]"}>
+            <span
+              className={
+                liveCandle.close >= liveCandle.open ? "text-[#19c37d]" : "text-[#ef5350]"
+              }
+            >
               C {formatPrice(liveCandle.close)}
             </span>
           </>
@@ -265,4 +282,8 @@ function getBucketTime(timestamp: number, timeframe: Timeframe) {
   const interval = intervalSeconds[timeframe];
 
   return Math.floor(timestampSeconds / interval) * interval;
+}
+
+function formatSymbol(symbol: SymbolCode) {
+  return symbol.replace("_", " / ");
 }

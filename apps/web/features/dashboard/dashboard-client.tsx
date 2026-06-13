@@ -26,14 +26,41 @@ import type {
   Candle,
   CreateOrderPayload,
   LedgerEntry,
+  LivePriceMap,
   MarketPrice,
   Order,
   Position,
+  SymbolCode,
   Timeframe,
   Wallet,
 } from "./types";
 
 const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080";
+const SYMBOL_OPTIONS: Array<{
+  symbol: SymbolCode;
+  label: string;
+  shortLabel: string;
+  description: string;
+}> = [
+  {
+    symbol: "BTC_USDC",
+    label: "BTC / USDC",
+    shortLabel: "BTC",
+    description: "Bitcoin perpetual",
+  },
+  {
+    symbol: "ETH_USDC",
+    label: "ETH / USDC",
+    shortLabel: "ETH",
+    description: "Ethereum perpetual",
+  },
+  {
+    symbol: "SOL_USDC",
+    label: "SOL / USDC",
+    shortLabel: "SOL",
+    description: "Solana perpetual",
+  },
+];
 
 export function DashboardClient() {
   const router = useRouter();
@@ -46,7 +73,8 @@ export function DashboardClient() {
   const [positionHistory, setPositionHistory] = useState<Position[]>([]);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [candles, setCandles] = useState<Candle[]>([]);
-  const [livePrice, setLivePrice] = useState<MarketPrice | null>(null);
+  const [selectedSymbol, setSelectedSymbol] = useState<SymbolCode>("BTC_USDC");
+  const [livePrices, setLivePrices] = useState<LivePriceMap>({});
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
   const [loadedTimeframe, setLoadedTimeframe] = useState<Timeframe>("1h");
   const [isAccountLoading, setIsAccountLoading] = useState(true);
@@ -57,6 +85,9 @@ export function DashboardClient() {
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const selectedMarket =
+    SYMBOL_OPTIONS.find((option) => option.symbol === selectedSymbol) ?? SYMBOL_OPTIONS[0]!;
+  const livePrice = livePrices[selectedSymbol] ?? null;
 
   const refreshAccountData = async () => {
     const [nextWallet, nextOrders, nextPositions, nextHistory, nextLedger] =
@@ -113,7 +144,7 @@ export function DashboardClient() {
     let isActive = true;
     setIsChartLoading(true);
 
-    getCandles("BTC_USDC", timeframe)
+    getCandles(selectedSymbol, timeframe)
       .then((data) => {
         if (isActive) {
           setCandles(data);
@@ -136,7 +167,7 @@ export function DashboardClient() {
     return () => {
       isActive = false;
     };
-  }, [timeframe]);
+  }, [selectedSymbol, timeframe]);
 
   useEffect(() => {
     const socket = new WebSocket(WEBSOCKET_URL);
@@ -147,11 +178,15 @@ export function DashboardClient() {
     socket.addEventListener("message", (event) => {
       const message = JSON.parse(String(event.data)) as {
         type?: string;
-        BTC_USDC?: MarketPrice | null;
-      };
+      } & Partial<Record<SymbolCode, MarketPrice | null>>;
 
-      if (message.type === "prices" && message.BTC_USDC) {
-        setLivePrice(message.BTC_USDC);
+      if (message.type === "prices") {
+        setLivePrices((current) => ({
+          ...current,
+          BTC_USDC: message.BTC_USDC ?? current.BTC_USDC ?? null,
+          ETH_USDC: message.ETH_USDC ?? current.ETH_USDC ?? null,
+          SOL_USDC: message.SOL_USDC ?? current.SOL_USDC ?? null,
+        }));
       }
     });
     socket.addEventListener("error", () => {
@@ -277,19 +312,45 @@ export function DashboardClient() {
 
       <section className="flex h-16 shrink-0 items-center justify-between border-b border-[#d7e0e8] bg-[#fbfcfd] px-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f59e0b] text-xs font-black text-white">
-            B
+          <div className="flex gap-2">
+            {SYMBOL_OPTIONS.map((option) => {
+              const isActive = option.symbol === selectedSymbol;
+              return (
+                <button
+                  key={option.symbol}
+                  type="button"
+                  onClick={() => setSelectedSymbol(option.symbol)}
+                  className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-left transition ${
+                    isActive
+                      ? "border-[#6a89a7] bg-[#edf4fa] shadow-[inset_0_0_0_1px_rgba(136,189,242,0.3)]"
+                      : "border-[#d7e0e8] bg-white hover:border-[#a9bac8] hover:bg-[#f8fbfd]"
+                  }`}
+                >
+                  <span
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-black ${
+                      isActive
+                        ? "bg-[#f59e0b] text-white"
+                        : "bg-[#eef3f7] text-[#58758e]"
+                    }`}
+                  >
+                    {option.shortLabel}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-[#263747]">
+                      {option.label}
+                    </span>
+                    <span className="block text-[10px] font-medium text-[#7b8d9d]">
+                      {option.description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-[#263747]">BTC / USDC</span>
-              <span className="rounded bg-[#e7f1f9] px-1.5 py-0.5 text-[10px] font-bold text-[#58758e]">
-                Perpetual
-              </span>
-            </div>
-            <p className="mt-0.5 text-[10px] font-medium text-[#7b8d9d]">
-              {livePrice ? "Live market" : "Waiting for live price"}
-            </p>
+          <div className="hidden md:block">
+            <span className="rounded bg-[#e7f1f9] px-1.5 py-0.5 text-[10px] font-bold text-[#58758e]">
+              {livePrice ? selectedMarket.description : `Waiting for ${selectedMarket.shortLabel} price`}
+            </span>
           </div>
         </div>
 
@@ -312,6 +373,7 @@ export function DashboardClient() {
           <ChartPanel
             candles={candles}
             livePrice={livePrice}
+            symbol={selectedSymbol}
             timeframe={timeframe}
             loadedTimeframe={loadedTimeframe}
             isLoading={isChartLoading}
@@ -322,7 +384,7 @@ export function DashboardClient() {
             orders={orders}
             positionHistory={positionHistory}
             ledger={ledger}
-            livePrice={livePrice}
+            livePrices={livePrices}
             isLoading={isAccountLoading}
             closingPositionId={closingPositionId}
             onClosePosition={handleClosePosition}
@@ -331,6 +393,7 @@ export function DashboardClient() {
 
         <div className="hidden min-h-0 bg-white lg:block">
           <OrderTicket
+            symbol={selectedSymbol}
             wallet={wallet}
             livePrice={livePrice}
             isSubmitting={isSubmittingOrder}

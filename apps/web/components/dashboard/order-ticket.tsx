@@ -5,10 +5,12 @@ import type {
   CreateOrderPayload,
   MarketPrice,
   OrderSide,
+  SymbolCode,
   Wallet,
 } from "../../features/dashboard/types";
 
 type OrderTicketProps = {
+  symbol: SymbolCode;
   wallet: Wallet | null;
   livePrice: MarketPrice | null;
   isSubmitting: boolean;
@@ -20,6 +22,7 @@ type OrderTicketProps = {
 };
 
 export function OrderTicket({
+  symbol,
   wallet,
   livePrice,
   isSubmitting,
@@ -61,7 +64,7 @@ export function OrderTicket({
     }
 
     await onSubmit({
-      symbol: "BTC_USDC",
+      symbol,
       side,
       orderType: "MARKET",
       qty: quantityValue,

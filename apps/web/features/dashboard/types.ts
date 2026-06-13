@@ -23,6 +23,8 @@ export type MarketPrice = {
   timestamp: number;
 };
 
+export type LivePriceMap = Partial<Record<SymbolCode, MarketPrice | null>>;
+
 export type Candle = {
   bucket: string;
   symbol: string;
