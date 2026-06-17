@@ -9,7 +9,7 @@ interface JwtPayload {
     email: string;
 }
 
-export const protectRoute = async (req: Request, res: Response, next: NextFunction) => {
+export const protectRoute = async (req: Request, _res: Response, next: NextFunction) => {
     const token = req.cookies.jwt;
     if (!token) {
         throw new AuthError("Unauthorized");

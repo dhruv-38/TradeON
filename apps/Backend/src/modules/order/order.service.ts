@@ -1,5 +1,4 @@
 import { CreateOrderInput } from "@repo/schemas-types";
-import { reserveFunds } from "../wallet/wallet.repository.js";
 import { createOrder, getOrders } from "./order.repository.js";
 import { AppError } from "../../lib/errors/AppError.js";
 import {redis, REDIS_STREAMS} from "@repo/redis";
@@ -20,8 +19,6 @@ export const createOrderService = async (userId: number,data: CreateOrderInput) 
   // Required Margin
   const marginRequired = positionValue / leverage;
 
-  // Reserve collateral
-  await reserveFunds(userId,marginRequired);
 
   const order = await createOrder({
     userId,

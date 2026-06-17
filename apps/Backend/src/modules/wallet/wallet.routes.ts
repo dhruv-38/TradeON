@@ -12,6 +12,6 @@ export const walletRouter: Router = express.Router();
 walletRouter.use(protectRoute);
 
 walletRouter.get("/", getWalletController);
+walletRouter.get("/ledger",getLedgerController);
 walletRouter.post("/deposit",depositController);
 walletRouter.post("/withdraw",withdrawController);
-walletRouter.get("/ledger",getLedgerController);

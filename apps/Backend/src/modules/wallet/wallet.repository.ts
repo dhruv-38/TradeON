@@ -1,4 +1,4 @@
-import { LedgerStatus, LedgerType, prisma } from "@repo/db";
+import { LedgerStatus, LedgerType, Prisma, prisma } from "@repo/db";
 import { InsufficientFundsError } from "../../lib/errors/InsufficientFundsError.js";
 
 export const createWallet = async (userId: number) => {
@@ -72,18 +72,18 @@ export const withdrawFunds = async (userId: number, amount: number) => {
             }
         });
         if (result.count === 0) {
-        throw new InsufficientFundsError();
-      }
-      const wallet =
-        await tx.wallet.findUnique({
-          where: {
-            userId,
-          },
-        });
+            throw new InsufficientFundsError();
+        }
+        const wallet =
+            await tx.wallet.findUnique({
+                where: {
+                    userId,
+                },
+            });
 
-      if (!wallet) {
-        throw new InsufficientFundsError("Wallet not found");
-      }
+        if (!wallet) {
+            throw new InsufficientFundsError("Wallet not found");
+        }
         await tx.ledgerEntry.create({
             data: {
                 walletId: wallet.id,
@@ -105,49 +105,47 @@ export const checkFunds = async (userId: number) => {
     }
     )
 }
-export const reserveFunds = async (userId: number, amount: number) => {
-    return await prisma.$transaction(async (tx) => {
-        const result = await tx.wallet.updateMany({
+export const reserveFunds = async (tx: Prisma.TransactionClient, userId: number, amount: number) => {
+    const result = await tx.wallet.updateMany({
+        where: {
+            userId,
+            availableBalance: {
+                gte: amount,
+            },
+        },
+        data: {
+            availableBalance: {
+                decrement: amount,
+            },
+            lockedBalance: {
+                increment: amount,
+            }
+        }
+    });
+    if (result.count === 0) {
+        throw new InsufficientFundsError();
+    }
+    const wallet =
+        await tx.wallet.findUnique({
             where: {
                 userId,
-                availableBalance: {
-                    gte: amount,
-                },
             },
-            data: {
-                availableBalance: {
-                    decrement: amount,
-                },
-                lockedBalance:{
-                    increment: amount,
-                }
-            }
-        });
-        if (result.count === 0) {
-        throw new InsufficientFundsError();
-      }
-      const wallet =
-        await tx.wallet.findUnique({
-          where: {
-            userId,
-          },
         });
 
-      if (!wallet) {
+    if (!wallet) {
         throw new InsufficientFundsError("Wallet not found");
-      }
-        await tx.ledgerEntry.create({
-            data: {
-                walletId: wallet.id,
-                amount,
-                type: LedgerType.ORDER_RESERVE,
-                status: LedgerStatus.COMPLETED
+    }
+    await tx.ledgerEntry.create({
+        data: {
+            walletId: wallet.id,
+            amount,
+            type: LedgerType.ORDER_RESERVE,
+            status: LedgerStatus.COMPLETED
 
-            }
-        });
-        return wallet;
-    })
-};
+        }
+    });
+    return wallet;
+}
 
 
 export const releaseFunds = async (userId: number, amount: number) => {
@@ -163,24 +161,24 @@ export const releaseFunds = async (userId: number, amount: number) => {
                 availableBalance: {
                     increment: amount,
                 },
-                lockedBalance:{
+                lockedBalance: {
                     decrement: amount,
                 }
             }
         });
         if (result.count === 0) {
-        throw new InsufficientFundsError();
-      }
-      const wallet =
-        await tx.wallet.findUnique({
-          where: {
-            userId,
-          },
-        });
+            throw new InsufficientFundsError();
+        }
+        const wallet =
+            await tx.wallet.findUnique({
+                where: {
+                    userId,
+                },
+            });
 
-      if (!wallet) {
-        throw new InsufficientFundsError("Wallet not found");
-      }
+        if (!wallet) {
+            throw new InsufficientFundsError("Wallet not found");
+        }
         await tx.ledgerEntry.create({
             data: {
                 walletId: wallet.id,
@@ -197,20 +195,20 @@ export const releaseFunds = async (userId: number, amount: number) => {
 export const getLedgerEntries = async (userId: number) => {
     const wallet = await prisma.wallet.findUnique({
         where: {
-          userId,
+            userId,
         },
-      });
+    });
 
     if (!wallet) {
-      throw new Error("Wallet not found");
+        throw new Error("Wallet not found");
     }
 
     return prisma.ledgerEntry.findMany({
-      where: {
-        walletId: wallet.id,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+        where: {
+            walletId: wallet.id,
+        },
+        orderBy: {
+            createdAt: "desc",
+        },
     });
-  };
+};

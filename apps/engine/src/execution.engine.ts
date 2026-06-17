@@ -1,5 +1,6 @@
-import { prisma, OrderStatus, Prisma, PositionStatus, LedgerType, LedgerStatus, OrderSide } from "@repo/db";
+import { prisma, OrderStatus, Prisma, PositionStatus, OrderSide } from "@repo/db";
 import { getMarketPrice } from "@repo/market";
+import { releaseFundsTx } from "@repo/trading";
 
 const rejectOrder = async (tx: Prisma.TransactionClient, orderId: number) => {
   return tx.order.update({
@@ -10,48 +11,6 @@ const rejectOrder = async (tx: Prisma.TransactionClient, orderId: number) => {
       status: OrderStatus.REJECTED,
     },
   });
-};
-
-export const releaseFundsTx = async (tx: Prisma.TransactionClient, userId: number, amount: number) => {
-  const result = await tx.wallet.updateMany({
-    where: {
-      userId,
-      lockedBalance: {
-        gte: amount,
-      },
-    },
-    data: {
-      availableBalance: {
-        increment: amount,
-      },
-      lockedBalance: {
-        decrement: amount,
-      }
-    }
-  });
-  if (result.count === 0) {
-    throw new Error("Insufficent funds");
-  }
-  const wallet =
-    await tx.wallet.findUnique({
-      where: {
-        userId,
-      },
-    });
-
-  if (!wallet) {
-    throw new Error("Wallet not found");
-  }
-  await tx.ledgerEntry.create({
-    data: {
-      walletId: wallet.id,
-      amount,
-      type: LedgerType.ORDER_RELEASE,
-      status: LedgerStatus.COMPLETED
-
-    }
-  });
-  return wallet;
 };
 
 export const executeOrder = async (orderId: number) => {

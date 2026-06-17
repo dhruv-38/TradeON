@@ -4,7 +4,6 @@ import {
   findWalletByUserId,
   getLedgerEntries,
   releaseFunds,
-  reserveFunds,
   withdrawFunds,
 } from "./wallet.repository.js";
 
@@ -25,11 +24,6 @@ export const withdrawFundsService = async(userId:number,data:WithdrawInput)=>{
     
     return {wallet};
 
-};
-export const reserveFundsService = async(userId:number, data:ReserveInput)=>{
-    const {amount}=data;
-    const wallet = await reserveFunds(userId,amount);
-    return {wallet};
 };
 
 export const releaseFundsService = async(userId:number, data:ReserveInput)=>{
