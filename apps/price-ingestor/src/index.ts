@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 import { config } from "@repo/config";
-import { redis, REDIS_KEYS, REDIS_STREAMS } from "@repo/redis"
+import { redis, REDIS_CHANNELS, REDIS_KEYS, REDIS_STREAMS } from "@repo/redis"
 
 const ws = new WebSocket(config.BACKPACK_WS_URL);
 
@@ -37,7 +37,8 @@ ws.on("message", async (raw) => {
 
     switch (data.s) {
       case "BTC_USDC":
-        await redis.set(REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
+        await redis.publish(REDIS_CHANNELS.BTC_USDC,JSON.stringify(payload));
+        // await redis.set(REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
         await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
           {
             event: "market.price.updated",
@@ -59,7 +60,8 @@ ws.on("message", async (raw) => {
         break;
 
       case "ETH_USDC":
-        await redis.set(REDIS_KEYS.ETH_USDC, JSON.stringify(payload));
+        await redis.publish(REDIS_CHANNELS.ETH_USDC,JSON.stringify(payload));
+        // await redis.set(REDIS_KEYS.ETH_USDC, JSON.stringify(payload));
         await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
           {
             event: "market.price.updated",
@@ -81,7 +83,8 @@ ws.on("message", async (raw) => {
         break;
 
       case "SOL_USDC":
-        await redis.set(REDIS_KEYS.SOL_USDC, JSON.stringify(payload));
+        await redis.publish(REDIS_CHANNELS.SOL_USDC,JSON.stringify(payload));
+        // await redis.set(REDIS_KEYS.SOL_USDC, JSON.stringify(payload));
         await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
           {
             event: "market.price.updated",

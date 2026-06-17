@@ -1,6 +1,15 @@
 import { prisma } from "@repo/db";
-import { redis, REDIS_KEYS } from "@repo/redis";
+import { redis, REDIS_CHANNELS, REDIS_KEYS } from "@repo/redis";
 import { WebSocket } from "ws";
+
+const sub = redis.duplicate();
+await sub.connect();
+
+const latestPrices = new Map<string, { bid: number; ask: number; timestamp: number }>();
+
+// await sub.subscribe(REDIS_CHANNELS[position.symbol], (message) => {
+//   latestPrices.set(position.symbol, JSON.parse(message));
+// });
 
 export const startPositionPublisher = (positionSubscribers: Map<number, Set<WebSocket>>) => {
   setInterval(async () => {
@@ -19,6 +28,7 @@ export const startPositionPublisher = (positionSubscribers: Map<number, Set<WebS
       }
 
       for (const position of positions) {
+        
         const rawPrice = await redis.get(REDIS_KEYS[position.symbol]);
 
         if (!rawPrice) {
