@@ -1,8 +1,6 @@
-import { redis } from "@repo/redis";
+import { redis, REDIS_STREAMS } from "@repo/redis";
 import { checkTpSl } from "./tpsl.engine.js";
 import { checkLiquidations } from "./liquidation.engine.js";
-
-const STREAM = "market-events";
 
 const GROUP = "market-group";
 
@@ -10,7 +8,7 @@ const CONSUMER = "engine-1";
 
 export const startMarketConsumer = async () => {
     try {
-      await redis.xGroupCreate(STREAM,GROUP,"$",
+      await redis.xGroupCreate(REDIS_STREAMS.MARKET_EVENTS_STREAM,GROUP,"$",
         {
           MKSTREAM: true,
         }
@@ -24,7 +22,7 @@ export const startMarketConsumer = async () => {
 
       const messages = await redis.xReadGroup(GROUP,CONSUMER,
           {
-            key: STREAM,
+            key: REDIS_STREAMS.MARKET_EVENTS_STREAM,
             id: ">",
           },
           {
@@ -45,7 +43,7 @@ export const startMarketConsumer = async () => {
           await checkTpSl(symbol,price);
           await checkLiquidations(symbol,price);
 
-          await redis.xAck(STREAM,GROUP,message.id);
+          await redis.xAck(REDIS_STREAMS.MARKET_EVENTS_STREAM,GROUP,message.id);
         }
       }
     }

@@ -75,6 +75,8 @@ export const executeOrder = async (orderId: number) => {
     } else {
       liquidationPrice = marketPrice *(1 +((1 / order.leverage) -maintenanceMarginRate));
     }
+
+    //should do in Memory
     const position = await tx.position.create({
       data: {
         userId: order.userId,

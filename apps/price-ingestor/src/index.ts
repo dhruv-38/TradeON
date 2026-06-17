@@ -16,14 +16,9 @@ ws.on("open", () => {
   }));
 });
 
-let count = 0;
 ws.on("message", async (raw) => {
   try {
     const message = JSON.parse(raw.toString());
-    if (count < 3) {
-      console.log(JSON.stringify(message, null, 2));
-      count++;
-    }
 
     if (!message.stream || !message.data) {
       return;

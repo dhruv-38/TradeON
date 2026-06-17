@@ -40,11 +40,6 @@ export const checkLiquidations = async (symbol: string, currentPrice: number) =>
 
             }
         }
-        // console.log({
-        //     positionId: position.id,
-        //     currentPrice,
-        //     liquidationPrice: Number(position.liquidationPrice),
-        // });
     }
 };
 
