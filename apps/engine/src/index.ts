@@ -1,6 +1,7 @@
 import { redis, REDIS_STREAMS, REDIS_GROUPS } from "@repo/redis";
 import { executeOrder } from "./execution.engine.js";
-import {startMarketConsumer} from "./market.consumer.js";
+import { startMarketConsumer } from "./market.consumer.js";
+import { startLivePriceCache } from "@repo/market";
 
 const consumerName = "engine-1";
 
@@ -58,6 +59,7 @@ async function startConsumer() {
 await createGroup();
 
 console.log("Engine consumer started...");
+await startLivePriceCache();
 
 void startConsumer();
 void startMarketConsumer();

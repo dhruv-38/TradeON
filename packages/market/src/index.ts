@@ -1,31 +1,18 @@
-import { redis, REDIS_CHANNELS } from "@repo/redis";
 import { Symbol, OrderSide } from "@repo/db";
+import { latestPrices } from "./live-price-cache.js";
 
-const sub= redis.duplicate();
-await sub.connect();
+export const getMarketPrice = async (symbol: Symbol, side: OrderSide) => {
+  const price = latestPrices.get(symbol);
 
-const latestPrices = new Map<string,{bid:number,ask:number,timestamp:number}>();
+  if (!price) {
+    throw new Error(`Price unavailable for ${symbol}`);
+  }
 
-export const getMarketPrice = async ( symbol: Symbol, side: OrderSide) => {
-    // const key = REDIS_KEYS[symbol];
-    // const raw = await redis.get(key);
-    await sub.subscribe(REDIS_CHANNELS[symbol], (message) => {
-      latestPrices.set(symbol, JSON.parse(message));
-    });
-    const price=latestPrices.get(REDIS_CHANNELS[symbol]);
-    
+  if (Date.now() - price.timestamp > 10000) {
+    throw new Error("Market data stale");
+  }
 
-    // if (!raw) {
-    //   throw new Error(`Price unavailable for ${symbol}`);
-    // }
-    if (!price) {
-      throw new Error(`Price unavailable for ${symbol}`);
-    }
-    // const price = JSON.parse(raw);
+  return side === OrderSide.BUY ? price.ask : price.bid;
+};
 
-    if (Date.now() - price.timestamp > 10000) {
-      throw new Error("Market data stale");
-    }
-
-    return side === OrderSide.BUY ? price.ask : price.bid;
-  };
+export * from "./live-price-cache.js";

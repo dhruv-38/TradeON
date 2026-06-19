@@ -121,6 +121,7 @@
       },
       "devDependencies": {
         "@repo/db": "workspace:*",
+        "@repo/market": "workspace:*",
         "@repo/redis": "workspace:*",
         "@repo/typescript-config": "workspace:*",
         "@types/bun": "latest",

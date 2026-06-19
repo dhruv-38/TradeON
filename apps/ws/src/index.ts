@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { broadcastPrices } from "./price.publisher.js";
 import { startUserEventsConsumer } from "./user-events.consumer.js";
 import { startPositionPublisher } from "./position.publisher.js";
+import { startLivePriceCache } from "@repo/market";
 
 const wss = new WebSocketServer({ port: 8080 });
 const clients = new Set<WebSocket>;
@@ -49,6 +50,7 @@ wss.on("connection", (ws) => {
     });
 });
 
+await startLivePriceCache();
 broadcastPrices(clients);
 startUserEventsConsumer(userSockets);
 startPositionPublisher(positionSubscribers);

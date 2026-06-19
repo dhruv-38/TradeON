@@ -18,6 +18,24 @@
       "cache": false,
       "persistent": true
     },
+    "backend#dev": {
+      "dependsOn": ["^db:generate"], 
+      "with": ["price-ingestor#dev"],
+      "cache": false,
+      "persistent": true
+    },
+    "engine#dev": {
+      "dependsOn": ["^db:generate"], 
+      "with": ["price-ingestor#dev"],
+      "cache": false,
+      "persistent": true
+    },
+    "ws#dev": {
+      "dependsOn": ["^db:generate"], 
+      "with": ["price-ingestor#dev"],
+      "cache": false,
+      "persistent": true
+    },
     "db:generate": { 
       "cache": false
     }, 

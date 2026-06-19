@@ -7,6 +7,7 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { orderRouter } from './modules/order/order.routes.js';
 import { positionRouter } from './modules/position/position.routes.js';
 import { marketRouter } from './modules/market/market.routes.js';
+import { startLivePriceCache } from '@repo/market';
 
 const app = express();
 
@@ -32,6 +33,9 @@ app.get("/health", (_, res) => {
 });
 
 app.use(errorMiddleware);
+
+await startLivePriceCache();
+
 app.listen(8000, () => {
   console.log("Server is running");
 });
