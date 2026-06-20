@@ -18,7 +18,7 @@ import {
   getLedger,
   getOrders,
   getPositionHistory,
-  getPositions,
+  getLivePositionState,
   getWallet,
   logout,
 } from "./api";
@@ -66,6 +66,7 @@ export function DashboardClient() {
   const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
   const clearUser = useAuthStore((state) => state.clearUser);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const [userName, setUserName] = useState("");
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -81,28 +82,33 @@ export function DashboardClient() {
   const [isChartLoading, setIsChartLoading] = useState(true);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [isFundingWallet, setIsFundingWallet] = useState(false);
-  const [closingPositionId, setClosingPositionId] = useState<number | null>(null);
+  const [closingPositionId, setClosingPositionId] = useState<string | null>(
+    null,
+  );
   const [orderError, setOrderError] = useState<string | null>(null);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const selectedMarket =
-    SYMBOL_OPTIONS.find((option) => option.symbol === selectedSymbol) ?? SYMBOL_OPTIONS[0]!;
+    SYMBOL_OPTIONS.find((option) => option.symbol === selectedSymbol) ??
+    SYMBOL_OPTIONS[0]!;
   const livePrice = livePrices[selectedSymbol] ?? null;
 
   const refreshAccountData = async () => {
-    const [nextWallet, nextOrders, nextPositions, nextHistory, nextLedger] =
+    const [nextWallet, nextOrders, liveState, nextHistory, nextLedger] =
       await Promise.all([
         getWallet(),
         getOrders(),
-        getPositions(),
+        getLivePositionState(),
         getPositionHistory(),
         getLedger(),
       ]);
 
     setWallet(nextWallet);
     setOrders(nextOrders);
-    setPositions(nextPositions);
-    setPositionHistory(nextHistory);
+    setPositions(liveState.openPositions);
+    setPositionHistory(
+      mergePositionHistory(liveState.recentHistory, nextHistory),
+    );
     setLedger(nextLedger);
   };
 
@@ -170,14 +176,44 @@ export function DashboardClient() {
   }, [selectedSymbol, timeframe]);
 
   useEffect(() => {
+    if (currentUserId === null) {
+      return;
+    }
+
     const socket = new WebSocket(WEBSOCKET_URL);
+    let liveRefreshTimer: number | undefined;
+
+    const scheduleLivePositionRefresh = () => {
+      if (liveRefreshTimer !== undefined) {
+        window.clearTimeout(liveRefreshTimer);
+      }
+
+      liveRefreshTimer = window.setTimeout(() => {
+        getLivePositionState()
+          .then((state) => {
+            setPositions(state.openPositions);
+            setPositionHistory((current) =>
+              mergePositionHistory(state.recentHistory, current),
+            );
+          })
+          .catch((error) => {
+            setConnectionError(getApiErrorMessage(error));
+          });
+      }, 50);
+    };
 
     socket.addEventListener("open", () => {
       setConnectionError(null);
+      socket.send(JSON.stringify({ type: "subscribe", userId: currentUserId }));
+      socket.send(JSON.stringify({ type: "positions", userId: currentUserId }));
     });
+
     socket.addEventListener("message", (event) => {
       const message = JSON.parse(String(event.data)) as {
         type?: string;
+        event?: string;
+        positionId?: string;
+        unrealizedPnl?: number;
       } & Partial<Record<SymbolCode, MarketPrice | null>>;
 
       if (message.type === "prices") {
@@ -187,14 +223,47 @@ export function DashboardClient() {
           ETH_USDC: message.ETH_USDC ?? current.ETH_USDC ?? null,
           SOL_USDC: message.SOL_USDC ?? current.SOL_USDC ?? null,
         }));
+        return;
+      }
+
+      if (
+        message.type === "position.update" &&
+        message.positionId &&
+        message.unrealizedPnl !== undefined
+      ) {
+        setPositions((current) =>
+          current.map((position) =>
+            position.id === message.positionId
+              ? {
+                  ...position,
+                  unrealizedPnl: String(message.unrealizedPnl),
+                }
+              : position,
+          ),
+        );
+        return;
+      }
+
+      if (
+        message.event === "position.opened" ||
+        message.event === "position.closed" ||
+        message.event === "position.liquidated"
+      ) {
+        scheduleLivePositionRefresh();
       }
     });
+
     socket.addEventListener("error", () => {
-      setConnectionError("Live prices are temporarily unavailable.");
+      setConnectionError("Live market updates are temporarily unavailable.");
     });
 
-    return () => socket.close();
-  }, []);
+    return () => {
+      if (liveRefreshTimer !== undefined) {
+        window.clearTimeout(liveRefreshTimer);
+      }
+      socket.close();
+    };
+  }, [currentUserId]);
 
   const handleCreateOrder = async (payload: CreateOrderPayload) => {
     setOrderError(null);
@@ -232,13 +301,18 @@ export function DashboardClient() {
     }
   };
 
-  const handleClosePosition = async (positionId: number) => {
+  const handleClosePosition = async (positionId: string) => {
     setClosingPositionId(positionId);
     setConnectionError(null);
 
     try {
-      await closePosition(positionId);
-      await refreshAccountData();
+      const closedPosition = await closePosition(positionId);
+      setPositions((current) =>
+        current.filter((position) => position.id !== positionId),
+      );
+      setPositionHistory((current) =>
+        mergePositionHistory([closedPosition], current),
+      );
     } catch (error) {
       setConnectionError(getApiErrorMessage(error));
     } finally {
@@ -260,7 +334,11 @@ export function DashboardClient() {
   return (
     <main className="flex h-screen flex-col gap-1 overflow-hidden bg-[#e8eef3] p-1 font-['Segoe_UI_Variable','Segoe_UI',sans-serif] text-[#263747]">
       <header className="flex h-13 shrink-0 items-center border-b border-[#d7e0e8] bg-white px-5">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="TradeON home">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5"
+          aria-label="TradeON home"
+        >
           <span className="relative h-8 w-8 shrink-0 overflow-hidden">
             <Image
               src="/tradeon-logo.png"
@@ -294,7 +372,8 @@ export function DashboardClient() {
             </p>
             <p className="text-xs font-bold text-[#263747]">
               {formatCurrency(
-                Number(wallet?.availableBalance ?? 0) + Number(wallet?.lockedBalance ?? 0),
+                Number(wallet?.availableBalance ?? 0) +
+                  Number(wallet?.lockedBalance ?? 0),
               )}
             </p>
           </div>
@@ -349,22 +428,37 @@ export function DashboardClient() {
           </div>
           <div className="hidden md:block">
             <span className="rounded bg-[#e7f1f9] px-1.5 py-0.5 text-[10px] font-bold text-[#58758e]">
-              {livePrice ? selectedMarket.description : `Waiting for ${selectedMarket.shortLabel} price`}
+              {livePrice
+                ? selectedMarket.description
+                : `Waiting for ${selectedMarket.shortLabel} price`}
             </span>
           </div>
         </div>
 
         <div className="hidden items-center gap-9 md:flex">
-          <MarketStat label="Mark Price" value={formatPrice(marketSummary.mark)} accent />
+          <MarketStat
+            label="Mark Price"
+            value={formatPrice(marketSummary.mark)}
+            accent
+          />
           <MarketStat
             label="Period Change"
             value={formatPercent(marketSummary.changePercent)}
             accent={marketSummary.changePercent >= 0}
             negative={marketSummary.changePercent < 0}
           />
-          <MarketStat label="Period High" value={formatPrice(marketSummary.high)} />
-          <MarketStat label="Period Low" value={formatPrice(marketSummary.low)} />
-          <MarketStat label="Available" value={formatCurrency(Number(wallet?.availableBalance ?? 0))} />
+          <MarketStat
+            label="Period High"
+            value={formatPrice(marketSummary.high)}
+          />
+          <MarketStat
+            label="Period Low"
+            value={formatPrice(marketSummary.low)}
+          />
+          <MarketStat
+            label="Available"
+            value={formatCurrency(Number(wallet?.availableBalance ?? 0))}
+          />
         </div>
       </section>
 
@@ -409,6 +503,22 @@ export function DashboardClient() {
   );
 }
 
+function mergePositionHistory(recent: Position[], persisted: Position[]) {
+  const positionsById = new Map(
+    persisted.map((position) => [position.id, position]),
+  );
+
+  for (const position of recent) {
+    positionsById.set(position.id, position);
+  }
+
+  return [...positionsById.values()].sort((left, right) => {
+    const leftTime = left.closedAt ? new Date(left.closedAt).getTime() : 0;
+    const rightTime = right.closedAt ? new Date(right.closedAt).getTime() : 0;
+    return rightTime - leftTime;
+  });
+}
+
 function MarketStat({
   label,
   value,
@@ -420,7 +530,11 @@ function MarketStat({
   accent?: boolean;
   negative?: boolean;
 }) {
-  const color = negative ? "text-[#ef5350]" : accent ? "text-[#119b68]" : "text-[#263747]";
+  const color = negative
+    ? "text-[#ef5350]"
+    : accent
+      ? "text-[#119b68]"
+      : "text-[#263747]";
 
   return (
     <div className="min-w-20">

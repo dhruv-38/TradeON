@@ -6,7 +6,7 @@ import {
   orders,
   type Position,
 } from "@repo/market";
-import { publishEngineDbEvent } from "@repo/redis";
+import { publishEngineDbEvent, publishUserEvent } from "@repo/redis";
 import { serializeOrder, serializePosition } from "./serialization.js";
 
 const MAINTENANCE_MARGIN_RATE = 0.01;
@@ -23,9 +23,22 @@ const rejectOrder = async (
     marginUsed: order.marginUsed.toString(),
     reason,
   });
-
+  const previousStatus = order.status;
+  const previousUpdatedAt = order.updatedAt;
   order.status = OrderStatus.REJECTED;
   order.updatedAt = new Date();
+
+  try {
+    await publishUserEvent(order.userId, "order.rejected", {
+      orderId: String(order.id),
+      reason,
+      source: "engine",
+    });
+  } catch (error) {
+    order.status = previousStatus;
+    order.updatedAt = previousUpdatedAt;
+    throw error;
+  }
 };
 
 export const executeOrder = async (orderId: number) => {
@@ -97,8 +110,25 @@ export const executeOrder = async (orderId: number) => {
     order: serializeOrder(filledOrder),
     position: serializePosition(position),
   });
-
+  const previousOrder = { ...order };
   Object.assign(order, filledOrder);
   position.order = order;
   openPositions.push(position);
+
+  try {
+    await publishUserEvent(order.userId, "position.opened", {
+      positionId: position.id,
+      orderId: String(order.id),
+      source: "engine",
+    });
+  } catch (error) {
+    const positionIndex = openPositions.findIndex(
+      (candidate) => candidate.id === position.id,
+    );
+    if (positionIndex !== -1) {
+      openPositions.splice(positionIndex, 1);
+    }
+    Object.assign(order, previousOrder);
+    throw error;
+  }
 };

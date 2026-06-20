@@ -25,8 +25,8 @@ type ActivityPanelProps = {
   ledger: LedgerEntry[];
   livePrices: LivePriceMap;
   isLoading: boolean;
-  closingPositionId: number | null;
-  onClosePosition: (positionId: number) => Promise<void>;
+  closingPositionId: string | null;
+  onClosePosition: (positionId: string) => Promise<void>;
 };
 
 export function ActivityPanel({
@@ -116,10 +116,15 @@ function TabContent({
           const asset = getBaseAsset(position.symbol);
 
           return (
-            <tr key={position.id} className="border-b border-[#edf1f4] hover:bg-[#fafcfd]">
+            <tr
+              key={position.id}
+              className="border-b border-[#edf1f4] hover:bg-[#fafcfd]"
+            >
               <Cell strong>{formatSymbol(position.symbol)}</Cell>
               <SideCell side={position.side} />
-              <Cell>{formatNumber(position.qty)} {asset}</Cell>
+              <Cell>
+                {formatNumber(position.qty)} {asset}
+              </Cell>
               <Cell>{formatPrice(position.entryPrice)}</Cell>
               <Cell>{formatPrice(markPrice)}</Cell>
               <Cell>{formatPrice(position.liquidationPrice)}</Cell>
@@ -142,12 +147,22 @@ function TabContent({
   }
 
   if (activeTab === "Open Orders") {
-    const openOrders = orders.filter((order) => ["PENDING", "OPEN"].includes(order.status));
-    return openOrders.length ? <OrdersTable orders={openOrders} /> : <EmptyState message="No open orders." />;
+    const openOrders = orders.filter((order) =>
+      ["PENDING", "OPEN"].includes(order.status),
+    );
+    return openOrders.length ? (
+      <OrdersTable orders={openOrders} />
+    ) : (
+      <EmptyState message="No open orders." />
+    );
   }
 
   if (activeTab === "Order History") {
-    return orders.length ? <OrdersTable orders={orders} /> : <EmptyState message="No order history." />;
+    return orders.length ? (
+      <OrdersTable orders={orders} />
+    ) : (
+      <EmptyState message="No order history." />
+    );
   }
 
   if (activeTab === "Position History") {
@@ -156,12 +171,27 @@ function TabContent({
     }
 
     return (
-      <DataTable headings={["Market", "Side", "Size", "Entry", "Realized PnL", "Status", "Closed"]}>
+      <DataTable
+        headings={[
+          "Market",
+          "Side",
+          "Size",
+          "Entry",
+          "Realized PnL",
+          "Status",
+          "Closed",
+        ]}
+      >
         {positionHistory.map((position) => (
-          <tr key={position.id} className="border-b border-[#edf1f4] hover:bg-[#fafcfd]">
+          <tr
+            key={position.id}
+            className="border-b border-[#edf1f4] hover:bg-[#fafcfd]"
+          >
             <Cell strong>{formatSymbol(position.symbol)}</Cell>
             <SideCell side={position.side} />
-            <Cell>{formatNumber(position.qty)} {getBaseAsset(position.symbol)}</Cell>
+            <Cell>
+              {formatNumber(position.qty)} {getBaseAsset(position.symbol)}
+            </Cell>
             <Cell>{formatPrice(position.entryPrice)}</Cell>
             <PnlCell value={Number(position.realizedPnl)} />
             <Cell>{position.status}</Cell>
@@ -179,7 +209,10 @@ function TabContent({
   return (
     <DataTable headings={["Type", "Amount", "Status", "Description", "Date"]}>
       {ledger.map((entry) => (
-        <tr key={entry.id} className="border-b border-[#edf1f4] hover:bg-[#fafcfd]">
+        <tr
+          key={entry.id}
+          className="border-b border-[#edf1f4] hover:bg-[#fafcfd]"
+        >
           <Cell strong>{entry.type.replaceAll("_", " ")}</Cell>
           <Cell>{formatPrice(entry.amount)} USDC</Cell>
           <Cell>{entry.status}</Cell>
@@ -193,14 +226,32 @@ function TabContent({
 
 function OrdersTable({ orders }: { orders: Order[] }) {
   return (
-    <DataTable headings={["Market", "Side", "Type", "Size", "Expected Price", "Leverage", "Status", "Created"]}>
+    <DataTable
+      headings={[
+        "Market",
+        "Side",
+        "Type",
+        "Size",
+        "Expected Price",
+        "Leverage",
+        "Status",
+        "Created",
+      ]}
+    >
       {orders.map((order) => (
-        <tr key={order.id} className="border-b border-[#edf1f4] hover:bg-[#fafcfd]">
+        <tr
+          key={order.id}
+          className="border-b border-[#edf1f4] hover:bg-[#fafcfd]"
+        >
           <Cell strong>{formatSymbol(order.symbol)}</Cell>
           <SideCell side={order.side} />
           <Cell>{order.orderType}</Cell>
-          <Cell>{formatNumber(order.qty)} {getBaseAsset(order.symbol)}</Cell>
-          <Cell>{formatPrice(order.executionPrice ?? order.expectedPrice)}</Cell>
+          <Cell>
+            {formatNumber(order.qty)} {getBaseAsset(order.symbol)}
+          </Cell>
+          <Cell>
+            {formatPrice(order.executionPrice ?? order.expectedPrice)}
+          </Cell>
           <Cell>{order.leverage}x</Cell>
           <Cell>{order.status}</Cell>
           <Cell>{formatDate(order.createdAt)}</Cell>
@@ -236,13 +287,25 @@ function DataTable({
   );
 }
 
-function Cell({ children, strong = false }: { children: React.ReactNode; strong?: boolean }) {
-  return <td className={`px-5 py-3 ${strong ? "font-semibold text-[#263747]" : ""}`}>{children}</td>;
+function Cell({
+  children,
+  strong = false,
+}: {
+  children: React.ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <td className={`px-5 py-3 ${strong ? "font-semibold text-[#263747]" : ""}`}>
+      {children}
+    </td>
+  );
 }
 
 function SideCell({ side }: { side: "BUY" | "SELL" }) {
   return (
-    <td className={`px-5 py-3 font-semibold ${side === "BUY" ? "text-[#19a974]" : "text-[#ef5350]"}`}>
+    <td
+      className={`px-5 py-3 font-semibold ${side === "BUY" ? "text-[#19a974]" : "text-[#ef5350]"}`}
+    >
       {side === "BUY" ? "Long" : "Short"}
     </td>
   );
@@ -250,7 +313,9 @@ function SideCell({ side }: { side: "BUY" | "SELL" }) {
 
 function PnlCell({ value }: { value: number }) {
   return (
-    <td className={`px-5 py-3 font-semibold ${value >= 0 ? "text-[#19a974]" : "text-[#ef5350]"}`}>
+    <td
+      className={`px-5 py-3 font-semibold ${value >= 0 ? "text-[#19a974]" : "text-[#ef5350]"}`}
+    >
       {value >= 0 ? "+" : ""}
       {value.toFixed(2)} USDC
     </td>

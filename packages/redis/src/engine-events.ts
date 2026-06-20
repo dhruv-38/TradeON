@@ -45,7 +45,17 @@ export type SerializedPosition = {
 
 export type EngineCommand =
   | { type: "order.loaded"; order: SerializedOrder }
-  | { type: "position.external.closed"; positionId: string };
+  | { type: "position.external.closed"; positionId: string }
+  | {
+      type: "positions.live.requested";
+      userId: number;
+      responseStream: string;
+    };
+
+export type LivePositionState = {
+  openPositions: SerializedPosition[];
+  recentHistory: SerializedPosition[];
+};
 
 export type EngineDbEvent =
   | {

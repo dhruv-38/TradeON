@@ -200,6 +200,9 @@
     },
     "packages/redis": {
       "name": "@repo/redis",
+      "dependencies": {
+        "redis": "^5.12.1",
+      },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
         "@types/bun": "latest",

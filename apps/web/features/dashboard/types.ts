@@ -54,7 +54,7 @@ export type Order = {
 };
 
 export type Position = {
-  id: number;
+  id: string;
   symbol: SymbolCode;
   side: OrderSide;
   qty: string;
@@ -67,6 +67,11 @@ export type Position = {
   status: "OPEN" | "CLOSED" | "LIQUIDATED";
   openedAt: string;
   closedAt: string | null;
+};
+
+export type LivePositionState = {
+  openPositions: Position[];
+  recentHistory: Position[];
 };
 
 export type LedgerEntry = {

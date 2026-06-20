@@ -1,6 +1,10 @@
-import { PositionStatus } from "@repo/db";
+import { PositionStatus, Prisma } from "@repo/db";
 import { openPositions } from "@repo/market";
-import { publishEngineDbEvent } from "@repo/redis";
+import { publishEngineDbEvent, publishUserEvent } from "@repo/redis";
+import {
+  forgetRecentPosition,
+  rememberRecentPosition,
+} from "./position-history.js";
 
 const liquidateMemoryPosition = async (
   positionId: string,
@@ -22,11 +26,37 @@ const liquidateMemoryPosition = async (
     closedAt: closedAt.toISOString(),
   });
 
+  const previous = {
+    status: position.status,
+    closedAt: position.closedAt,
+    closePrice: position.order.closePrice,
+    closeTime: position.order.closeTime,
+    orderUpdatedAt: position.order.updatedAt,
+  };
+
   position.status = PositionStatus.LIQUIDATED;
   position.closedAt = closedAt;
+  position.order.closePrice = new Prisma.Decimal(currentPrice);
   position.order.closeTime = closedAt;
   position.order.updatedAt = closedAt;
   openPositions.splice(index, 1);
+  rememberRecentPosition(position);
+
+  try {
+    await publishUserEvent(position.userId, "position.liquidated", {
+      positionId: position.id,
+      source: "engine",
+    });
+  } catch (error) {
+    forgetRecentPosition(position.id);
+    position.status = previous.status;
+    position.closedAt = previous.closedAt;
+    position.order.closePrice = previous.closePrice;
+    position.order.closeTime = previous.closeTime;
+    position.order.updatedAt = previous.orderUpdatedAt;
+    openPositions.splice(Math.min(index, openPositions.length), 0, position);
+    throw error;
+  }
 };
 
 export const checkLiquidations = async (

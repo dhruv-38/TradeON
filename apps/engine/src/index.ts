@@ -1,9 +1,26 @@
 import { randomUUID } from "node:crypto";
-import { openPositions, startLivePriceCache } from "@repo/market";
-import { parseJsonEvent,publishEngineDbEvent,redis,REDIS_GROUPS,REDIS_STREAMS,type EngineCommand,type EngineSnapshot} from "@repo/redis";
+import {
+  openPositions,
+  recentPositionHistory,
+  startLivePriceCache,
+} from "@repo/market";
+import {
+  parseJsonEvent,
+  publishEngineDbEvent,
+  redis,
+  REDIS_GROUPS,
+  REDIS_STREAMS,
+  type EngineCommand,
+  type EngineSnapshot,
+  type LivePositionState,
+} from "@repo/redis";
 import { executeOrder } from "./execution.engine.js";
 import { startMarketConsumer } from "./market.consumer.js";
-import { hydrateEngineMemory, upsertMemoryOrder } from "./serialization.js";
+import {
+  hydrateEngineMemory,
+  serializePosition,
+  upsertMemoryOrder,
+} from "./serialization.js";
 import { removeExternallyClosedPosition } from "./position.engine.js";
 
 const CONSUMER_NAME = "engine-1";
@@ -57,7 +74,24 @@ const handleCommand = async (command: EngineCommand) => {
     return;
   }
 
-  removeExternallyClosedPosition(command.positionId);
+  if (command.type === "positions.live.requested") {
+    const state: LivePositionState = {
+      openPositions: openPositions
+        .filter((position) => position.userId === command.userId)
+        .map(serializePosition),
+      recentHistory: recentPositionHistory
+        .filter((position) => position.userId === command.userId)
+        .map(serializePosition),
+    };
+
+    await redis.xAdd(command.responseStream, "*", {
+      payload: JSON.stringify(state),
+    });
+    await redis.expire(command.responseStream, 30);
+    return;
+  }
+
+  await removeExternallyClosedPosition(command.positionId);
 };
 
 const startConsumer = async () => {

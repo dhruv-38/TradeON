@@ -6,18 +6,13 @@ import {
   Prisma,
   prisma,
 } from "@repo/db";
-import {
-  publishUserEvent,
-  redis,
-  type EngineDbEvent,
-  type EngineSnapshot,
-} from "@repo/redis";
+import { redis, type EngineDbEvent, type EngineSnapshot } from "@repo/redis";
 import { serializeOrder, serializePosition } from "./serialization.js";
 
 const releaseRejectedOrder = async (
   event: Extract<EngineDbEvent, { type: "order.rejected" }>,
 ) => {
-  const applied = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const updated = await tx.order.updateMany({
       where: { id: event.orderId, status: OrderStatus.PENDING },
       data: { status: OrderStatus.REJECTED },
@@ -56,19 +51,12 @@ const releaseRejectedOrder = async (
 
     return true;
   });
-
-  if (applied) {
-    await publishUserEvent(event.userId, "order.rejected", {
-      orderId: String(event.orderId),
-      reason: event.reason,
-    });
-  }
 };
 
 const persistOpenedPosition = async (
   event: Extract<EngineDbEvent, { type: "position.opened" }>,
 ) => {
-  const persisted = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const updated = await tx.order.updateMany({
       where: { id: event.order.id, status: OrderStatus.PENDING },
       data: {
@@ -100,19 +88,12 @@ const persistOpenedPosition = async (
       },
     });
   });
-
-  if (persisted) {
-    await publishUserEvent(persisted.userId, "position.opened", {
-      positionId: persisted.id,
-      orderId: String(persisted.orderId),
-    });
-  }
 };
 
 const persistClosedPosition = async (
   event: Extract<EngineDbEvent, { type: "position.closed" }>,
 ) => {
-  const result = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const position = await tx.position.findUnique({
       where: { id: event.positionId },
     });
@@ -178,19 +159,12 @@ const persistClosedPosition = async (
 
     return position;
   });
-
-  if (result) {
-    await publishUserEvent(event.userId, "position.closed", {
-      positionId: event.positionId,
-      reason: event.reason,
-    });
-  }
 };
 
 const persistLiquidation = async (
   event: Extract<EngineDbEvent, { type: "position.liquidated" }>,
 ) => {
-  const result = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const position = await tx.position.findUnique({
       where: { id: event.positionId },
     });
@@ -251,12 +225,6 @@ const persistLiquidation = async (
 
     return position;
   });
-
-  if (result) {
-    await publishUserEvent(event.userId, "position.liquidated", {
-      positionId: event.positionId,
-    });
-  }
 };
 
 const sendSnapshot = async (
@@ -264,7 +232,7 @@ const sendSnapshot = async (
 ) => {
   const [pendingOrders, positions] = await Promise.all([
     prisma.order.findMany({
-      where: { status:{ in: [OrderStatus.PENDING, OrderStatus.OPEN] }},
+      where: { status: { in: [OrderStatus.PENDING, OrderStatus.OPEN] } },
     }),
     prisma.position.findMany({
       where: { status: PositionStatus.OPEN },

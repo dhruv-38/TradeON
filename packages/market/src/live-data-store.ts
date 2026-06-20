@@ -1,4 +1,11 @@
-import { Prisma, Symbol, OrderSide, PositionStatus, OrderType, OrderStatus } from '@repo/db';
+import {
+  Prisma,
+  Symbol,
+  OrderSide,
+  PositionStatus,
+  OrderType,
+  OrderStatus,
+} from "@repo/db";
 
 export type Order = {
   id: number;
@@ -38,7 +45,7 @@ export type Position = {
   userId: number;
   orderId: number;
 
-  order:Order,
+  order: Order;
 
   symbol: Symbol;
   side: OrderSide;
@@ -65,5 +72,6 @@ export type Position = {
   closedAt: Date | null;
 };
 
-export const openPositions: Position[] =[];
+export const openPositions: Position[] = [];
+export const recentPositionHistory: Position[] = [];
 export const orders: Order[] = [];

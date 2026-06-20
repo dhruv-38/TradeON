@@ -12,7 +12,7 @@ import type {
   SerializedOrder,
   SerializedPosition,
 } from "@repo/redis";
-import { openPositions, orders } from "@repo/market";
+import { openPositions, orders, recentPositionHistory } from "@repo/market";
 
 export const serializeOrder = (order: Order): SerializedOrder => ({
   id: order.id,
@@ -111,6 +111,7 @@ export const deserializePosition = (
 export const hydrateEngineMemory = (snapshot: EngineSnapshot) => {
   orders.length = 0;
   openPositions.length = 0;
+  recentPositionHistory.length = 0;
 
   for (const order of snapshot.orders) {
     orders.push(deserializeOrder(order));

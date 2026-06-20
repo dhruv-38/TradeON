@@ -1,5 +1,12 @@
 import { OrderStatus, prisma } from "@repo/db";
-import { parseJsonEvent, publishEngineCommand, redis, REDIS_GROUPS, REDIS_STREAMS, type EngineDbEvent } from "@repo/redis";
+import {
+  parseJsonEvent,
+  publishEngineCommand,
+  redis,
+  REDIS_GROUPS,
+  REDIS_STREAMS,
+  type EngineDbEvent,
+} from "@repo/redis";
 import { persistEngineEvent } from "./persistence.js";
 import { serializeOrder } from "./serialization.js";
 
@@ -24,7 +31,11 @@ const createGroup = async (
 const startOrderLoader = async () => {
   const client = redis.duplicate();
   await client.connect();
-  await createGroup(client, REDIS_STREAMS.ORDER_STREAM, REDIS_GROUPS.ENGINE_WORKER_ORDER_GROUP);
+  await createGroup(
+    client,
+    REDIS_STREAMS.ORDER_STREAM,
+    REDIS_GROUPS.ENGINE_WORKER_ORDER_GROUP,
+  );
 
   while (true) {
     const pending = await client.xReadGroup(
@@ -155,9 +166,11 @@ const startExternalPositionSync = async () => {
         try {
           const event = message.message.event;
           const positionId = message.message.positionId;
+          const source = message.message.source;
 
           if (
             positionId &&
+            source !== "engine" &&
             (event === "position.closed" || event === "position.liquidated")
           ) {
             await publishEngineCommand({

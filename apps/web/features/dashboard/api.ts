@@ -4,6 +4,7 @@ import type {
   CreateOrderPayload,
   DashboardUser,
   LedgerEntry,
+  LivePositionState,
   Order,
   Position,
   SymbolCode,
@@ -17,7 +18,9 @@ type DataResponse<T> = {
 };
 
 export async function getCurrentUser() {
-  const response = await api.get<{ success: boolean; user: DashboardUser }>("/auth/me");
+  const response = await api.get<{ success: boolean; user: DashboardUser }>(
+    "/auth/me",
+  );
   return response.data.user;
 }
 
@@ -31,9 +34,12 @@ export async function getWallet() {
 }
 
 export async function depositFunds(amount: number) {
-  const response = await api.post<{ success: boolean; wallet: Wallet }>("/wallet/deposit", {
-    amount,
-  });
+  const response = await api.post<{ success: boolean; wallet: Wallet }>(
+    "/wallet/deposit",
+    {
+      amount,
+    },
+  );
   return response.data.wallet;
 }
 
@@ -59,13 +65,22 @@ export async function getPositions() {
   return response.data.data;
 }
 
-export async function getPositionHistory() {
-  const response = await api.get<DataResponse<Position[]>>("/positions/history");
+export async function getLivePositionState() {
+  const response =
+    await api.get<DataResponse<LivePositionState>>("/positions/live");
   return response.data.data;
 }
 
-export async function closePosition(positionId: number) {
-  const response = await api.post<DataResponse<Position>>(`/positions/${positionId}/close`);
+export async function getPositionHistory() {
+  const response =
+    await api.get<DataResponse<Position[]>>("/positions/history");
+  return response.data.data;
+}
+
+export async function closePosition(positionId: string) {
+  const response = await api.post<DataResponse<Position>>(
+    `/positions/${positionId}/close`,
+  );
   return response.data.data;
 }
 

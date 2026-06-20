@@ -1,6 +1,10 @@
 import { PositionStatus, Prisma } from "@repo/db";
 import { getMarketPrice, openPositions } from "@repo/market";
-import { publishEngineDbEvent } from "@repo/redis";
+import { publishEngineDbEvent, publishUserEvent } from "@repo/redis";
+import {
+  forgetRecentPosition,
+  rememberRecentPosition,
+} from "./position-history.js";
 
 export type CloseReason = "USER" | "TAKE_PROFIT" | "STOP_LOSS";
 
@@ -38,6 +42,15 @@ export const closeMemoryPosition = async (
     reason,
   });
 
+  const previous = {
+    status: position.status,
+    realizedPnl: position.realizedPnl,
+    closedAt: position.closedAt,
+    closePrice: position.order.closePrice,
+    closeTime: position.order.closeTime,
+    orderUpdatedAt: position.order.updatedAt,
+  };
+
   position.status = PositionStatus.CLOSED;
   position.realizedPnl = new Prisma.Decimal(realizedPnl);
   position.closedAt = closedAt;
@@ -45,17 +58,45 @@ export const closeMemoryPosition = async (
   position.order.closeTime = closedAt;
   position.order.updatedAt = closedAt;
   openPositions.splice(index, 1);
+  rememberRecentPosition(position);
+
+  try {
+    await publishUserEvent(position.userId, "position.closed", {
+      positionId: position.id,
+      reason,
+      source: "engine",
+    });
+  } catch (error) {
+    forgetRecentPosition(position.id);
+    position.status = previous.status;
+    position.realizedPnl = previous.realizedPnl;
+    position.closedAt = previous.closedAt;
+    position.order.closePrice = previous.closePrice;
+    position.order.closeTime = previous.closeTime;
+    position.order.updatedAt = previous.orderUpdatedAt;
+    openPositions.splice(Math.min(index, openPositions.length), 0, position);
+    throw error;
+  }
 };
 
-export const removeExternallyClosedPosition = (positionId: string) => {
+export const removeExternallyClosedPosition = async (positionId: string) => {
   const index = openPositions.findIndex(
     (position) => position.id === positionId,
   );
   if (index === -1) return;
 
   const position = openPositions[index]!;
+  const closedAt = new Date();
   position.status = PositionStatus.CLOSED;
-  position.order.closeTime = new Date();
-  position.order.updatedAt = new Date();
+  position.closedAt = closedAt;
+  position.order.closeTime = closedAt;
+  position.order.updatedAt = closedAt;
   openPositions.splice(index, 1);
+  rememberRecentPosition(position);
+
+  await publishUserEvent(position.userId, "position.closed", {
+    positionId: position.id,
+    reason: "EXTERNAL",
+    source: "engine",
+  });
 };
