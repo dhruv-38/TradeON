@@ -14,35 +14,35 @@
       "dependsOn": ["^check-types"]
     },
     "dev": {
-      "dependsOn": ["^db:generate"], 
+      "dependsOn": ["^db:generate"],
       "cache": false,
       "persistent": true
     },
     "backend#dev": {
-      "dependsOn": ["^db:generate"], 
+      "dependsOn": ["^db:generate"],
       "with": ["price-ingestor#dev"],
       "cache": false,
       "persistent": true
     },
     "engine#dev": {
-      "dependsOn": ["^db:generate"], 
-      "with": ["price-ingestor#dev"],
+      "dependsOn": ["^db:generate"],
+      "with": ["price-ingestor#dev", "engine-worker#dev"],
       "cache": false,
       "persistent": true
     },
     "ws#dev": {
-      "dependsOn": ["^db:generate"], 
+      "dependsOn": ["^db:generate"],
       "with": ["price-ingestor#dev"],
       "cache": false,
       "persistent": true
     },
-    "db:generate": { 
+    "db:generate": {
       "cache": false
-    }, 
-    "db:migrate": { 
+    },
+    "db:migrate": {
       "cache": false
-    }, 
-    "db:deploy": { 
+    },
+    "db:deploy": {
       "cache": false
     },
     "timescale:schema": {

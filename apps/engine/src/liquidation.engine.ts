@@ -1,133 +1,53 @@
-import { prisma, PositionStatus, OrderSide, LedgerType, LedgerStatus } from "@repo/db";
-import { publishUserEvent } from "@repo/redis";
+import { PositionStatus } from "@repo/db";
+import { openPositions } from "@repo/market";
+import { publishEngineDbEvent } from "@repo/redis";
 
-export const checkLiquidations = async (symbol: string, currentPrice: number) => {
-    const positions = await prisma.position.findMany({
-        where: {
-            symbol: symbol as any,
-            status:
-                PositionStatus.OPEN,
-        },
-    });
+const liquidateMemoryPosition = async (
+  positionId: string,
+  currentPrice: number,
+) => {
+  const index = openPositions.findIndex(
+    (position) => position.id === positionId,
+  );
+  if (index === -1) return;
 
-    for (const position of positions) {
-        if (!position.liquidationPrice) {
-            continue;
-        }
+  const position = openPositions[index]!;
+  const closedAt = new Date();
 
-        if (position.side === OrderSide.BUY) {
-            if (currentPrice <= Number(position.liquidationPrice)) {
-                console.log(`LIQUIDATED ${position.id}`);
+  await publishEngineDbEvent({
+    type: "position.liquidated",
+    positionId: position.id,
+    userId: position.userId,
+    exitPrice: String(currentPrice),
+    closedAt: closedAt.toISOString(),
+  });
 
-                await liquidatePosition(position.id);
-                await publishUserEvent(position.userId, "position.liquidated",
-                    {
-                        positionId: String(position.id),
-                    }
-                );
-            }
-        }
-
-        if (position.side === OrderSide.SELL) {
-            if (currentPrice >= Number(position.liquidationPrice)) {
-                console.log(`LIQUIDATED ${position.id}`);
-                await liquidatePosition(position.id);
-                await publishUserEvent(position.userId, "position.liquidated",
-                    {
-                        positionId: String(position.id),
-                    }
-                );
-
-            }
-        }
-    }
+  position.status = PositionStatus.LIQUIDATED;
+  position.closedAt = closedAt;
+  position.order.closeTime = closedAt;
+  position.order.updatedAt = closedAt;
+  openPositions.splice(index, 1);
 };
 
-const liquidatePosition = async (positionId: number) => {
-    await prisma.$transaction(async (tx) => {
-        const position = await tx.position.findUnique({
-            where: {
-                id: positionId,
-            },
-        });
+export const checkLiquidations = async (
+  symbol: string,
+  currentPrice: number,
+) => {
+  const positions = openPositions.filter(
+    (position) => position.symbol === symbol,
+  );
 
-        if (!position) {
-            throw new Error("Position not found");
-        }
+  for (const position of positions) {
+    if (position.liquidationPrice === null) continue;
 
-        const wallet = await tx.wallet.findUnique({
-            where: {
-                userId: position.userId,
-            },
-        });
+    const shouldLiquidate =
+      position.side === "BUY"
+        ? currentPrice <= Number(position.liquidationPrice)
+        : currentPrice >= Number(position.liquidationPrice);
 
-        if (!wallet) {
-            throw new Error("Wallet not found");
-        }
-
-        const result = await tx.wallet.updateMany({
-            where: {
-                userId: position.userId,
-                lockedBalance: {
-                    gte: position.marginUsed,
-                },
-            },
-            data: {
-                lockedBalance: {
-                    decrement:
-                        position.marginUsed,
-                },
-            },
-        });
-
-        if (result.count === 0) {
-            throw new Error(
-                "Locked margin missing"
-            );
-        }
-
-        await tx.ledgerEntry.create({
-            data: {
-                walletId: wallet.id,
-
-                amount:
-                    position.marginUsed,
-
-                type:
-                    LedgerType.LIQUIDATION,
-
-                status:
-                    LedgerStatus.COMPLETED,
-
-                referenceId:
-                    position.id,
-
-                referenceType:
-                    "POSITION",
-            },
-        });
-
-        await tx.position.update({
-            where: {
-                id: position.id,
-            },
-            data: {
-                status:
-                    PositionStatus.LIQUIDATED,
-
-                closedAt:
-                    new Date(),
-            },
-        });
-
-        await tx.order.update({
-            where: {
-                id: position.orderId,
-            },
-            data: {
-                closeTime:
-                    new Date(),
-            },
-        });
-    });
+    if (shouldLiquidate) {
+      console.log(`LIQUIDATED ${position.id}`);
+      await liquidateMemoryPosition(position.id, currentPrice);
+    }
+  }
 };

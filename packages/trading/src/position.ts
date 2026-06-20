@@ -3,7 +3,7 @@ import {getMarketPrice} from "@repo/market";
 import { releaseFundsTx } from "./wallet.js";
 import { publishUserEvent } from "@repo/redis";
 
-export const closePosition = async (userId: number, positionId: number) => {
+export const closePosition = async (userId: number, positionId: string) => {
     const position = await prisma.position.findFirst({
         where: {
             id: positionId,
@@ -16,7 +16,7 @@ export const closePosition = async (userId: number, positionId: number) => {
         throw new Error("Position not found");
     }
 
-    const marketPrice = await getMarketPrice(position.symbol, position.side);
+    const marketPrice = getMarketPrice(position.symbol, position.side);
 
     let pnl = 0;
 
@@ -54,7 +54,6 @@ export const closePosition = async (userId: number, positionId: number) => {
                 amount: pnl,
                 type: LedgerType.TRADE,
                 status: LedgerStatus.COMPLETED,
-                referenceId: position.id,
                 referenceType: "POSITION",
             },
         });

@@ -1,7 +1,7 @@
 import { Symbol, OrderSide } from "@repo/db";
 import { latestPrices } from "./live-price-cache.js";
 
-export const getMarketPrice = async (symbol: Symbol, side: OrderSide) => {
+export const getMarketPrice = (symbol: Symbol, side: OrderSide) => {
   const price = latestPrices.get(symbol);
 
   if (!price) {
@@ -16,3 +16,4 @@ export const getMarketPrice = async (symbol: Symbol, side: OrderSide) => {
 };
 
 export * from "./live-price-cache.js";
+export * from "./live-data-store.js";

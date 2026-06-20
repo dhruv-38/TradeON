@@ -1,24 +1,24 @@
 import { prisma } from "@repo/db";
 import { WebSocket } from "ws";
-import { latestPrices } from "@repo/market";
+import { latestPrices, openPositions } from "@repo/market";
 
 export const startPositionPublisher = (positionSubscribers: Map<number, Set<WebSocket>>) => {
   setInterval(async () => {
     const userIds = [...positionSubscribers.keys()];
     for (const userId of userIds) {
-      const positions = await prisma.position.findMany({
-          where: {
-            userId,
-            status: "OPEN",
-          },
-        });
+      // const positions = await prisma.position.findMany({
+      //     where: {
+      //       userId,
+      //       status: "OPEN",
+      //     },
+      //   });
 
       const sockets = positionSubscribers.get(userId);
       if (!sockets || sockets.size === 0) {
         continue;
       }
 
-      for (const position of positions) {
+      for (const position of openPositions) {
         const market = latestPrices.get(position.symbol);
 
         if (!market) {

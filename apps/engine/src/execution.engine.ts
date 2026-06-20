@@ -1,98 +1,104 @@
-import { prisma, OrderStatus, Prisma, PositionStatus, OrderSide } from "@repo/db";
-import { getMarketPrice } from "@repo/market";
-import { releaseFundsTx } from "@repo/trading";
+import { randomUUID } from "node:crypto";
+import { OrderSide, OrderStatus, PositionStatus, Prisma } from "@repo/db";
+import {
+  getMarketPrice,
+  openPositions,
+  orders,
+  type Position,
+} from "@repo/market";
+import { publishEngineDbEvent } from "@repo/redis";
+import { serializeOrder, serializePosition } from "./serialization.js";
 
-const rejectOrder = async (tx: Prisma.TransactionClient, orderId: number) => {
-  return tx.order.update({
-    where: {
-      id: orderId,
-    },
-    data: {
-      status: OrderStatus.REJECTED,
-    },
+const MAINTENANCE_MARGIN_RATE = 0.01;
+const MARGIN_TOLERANCE = 1.02;
+
+const rejectOrder = async (
+  order: (typeof orders)[number],
+  reason: "SLIPPAGE" | "MARGIN_EXCEEDED",
+) => {
+  await publishEngineDbEvent({
+    type: "order.rejected",
+    orderId: order.id,
+    userId: order.userId,
+    marginUsed: order.marginUsed.toString(),
+    reason,
   });
+
+  order.status = OrderStatus.REJECTED;
+  order.updatedAt = new Date();
 };
 
 export const executeOrder = async (orderId: number) => {
-  const order = await prisma.order.findUnique({
-    where: {
-      id: orderId,
-    }
-  });
-  if (!order) { throw new Error("Order not found"); }
+  const order = orders.find((candidate) => candidate.id === orderId);
 
-  if (order.status !== OrderStatus.PENDING) {
-    throw new Error("Order already processed");
+  if (!order) {
+    throw new Error(`Order ${orderId} not found in engine memory`);
   }
 
+  if (order.status !== OrderStatus.PENDING) {
+    return;
+  }
 
-  const marketPrice = await getMarketPrice(order.symbol, order.side);
+  const marketPrice = getMarketPrice(order.symbol, order.side);
+  const slippagePercent =
+    (Math.abs(marketPrice - Number(order.expectedPrice)) /
+      Number(order.expectedPrice)) *
+    100;
 
-  const slippagePercent = Math.abs(marketPrice - Number(order.expectedPrice)) / Number(order.expectedPrice) * 100;
+  if (order.slippage !== null && slippagePercent > Number(order.slippage)) {
+    await rejectOrder(order, "SLIPPAGE");
+    return;
+  }
 
-  return await prisma.$transaction(async (tx) => {
-    if (order.slippage !== null && slippagePercent > Number(order.slippage)) {
+  const actualMarginRequired =
+    (Number(order.qty) * marketPrice) / order.leverage;
 
-      await releaseFundsTx(tx, order.userId, Number(order.marginUsed));
+  if (actualMarginRequired > Number(order.marginUsed) * MARGIN_TOLERANCE) {
+    await rejectOrder(order, "MARGIN_EXCEEDED");
+    return;
+  }
 
-      await rejectOrder(tx, order.id);
+  const executedAt = new Date();
+  const filledOrder = {
+    ...order,
+    status: OrderStatus.FILLED,
+    executionPrice: new Prisma.Decimal(marketPrice),
+    executedAt,
+    updatedAt: executedAt,
+  };
 
-      return {
-        rejected: true,
-      };
-    }
+  const liquidationPrice =
+    order.side === OrderSide.BUY
+      ? marketPrice * (1 - (1 / order.leverage - MAINTENANCE_MARGIN_RATE))
+      : marketPrice * (1 + (1 / order.leverage - MAINTENANCE_MARGIN_RATE));
 
-    const actualPositionValue = Number(order.qty) * marketPrice;
+  const position: Position = {
+    id: randomUUID(),
+    userId: order.userId,
+    orderId: order.id,
+    order: filledOrder,
+    symbol: order.symbol,
+    side: order.side,
+    qty: order.qty,
+    leverage: order.leverage,
+    entryPrice: new Prisma.Decimal(marketPrice),
+    marginUsed: order.marginUsed,
+    liquidationPrice: new Prisma.Decimal(liquidationPrice),
+    maintenanceMargin: new Prisma.Decimal(MAINTENANCE_MARGIN_RATE),
+    unrealizedPnl: new Prisma.Decimal(0),
+    realizedPnl: new Prisma.Decimal(0),
+    status: PositionStatus.OPEN,
+    openedAt: executedAt,
+    closedAt: null,
+  };
 
-    const actualMarginRequired = actualPositionValue / order.leverage;
-    const allowedMargin = Number(order.marginUsed) * 1.02;
-
-    if (actualMarginRequired > allowedMargin) {
-      await releaseFundsTx(tx, order.userId, Number(order.marginUsed));
-
-      await rejectOrder(tx, order.id);
-      return {
-        rejected: true,
-      };
-    }
-
-    const updatedOrder = await tx.order.update({
-      where: {
-        id: order.id,
-      },
-      data: {
-        status: OrderStatus.FILLED,
-        executionPrice: new Prisma.Decimal(marketPrice),
-        executedAt: new Date(),
-      },
-    });
-
-    const maintenanceMarginRate = 0.01;
-    let liquidationPrice: number;
-
-    if (order.side === OrderSide.BUY) {
-      liquidationPrice = marketPrice * (1 -((1 / order.leverage) -maintenanceMarginRate));
-    } else {
-      liquidationPrice = marketPrice *(1 +((1 / order.leverage) -maintenanceMarginRate));
-    }
-
-    //should do in Memory
-    const position = await tx.position.create({
-      data: {
-        userId: order.userId,
-        orderId: order.id,
-        symbol: order.symbol,
-        side: order.side,
-        qty: order.qty,
-        leverage: order.leverage,
-        marginUsed: order.marginUsed,
-        liquidationPrice: new Prisma.Decimal(liquidationPrice),
-        maintenanceMargin: new Prisma.Decimal(maintenanceMarginRate),
-        entryPrice: new Prisma.Decimal(marketPrice),
-        status: PositionStatus.OPEN,
-      },
-    });
-
-    return { order: updatedOrder, position };
+  await publishEngineDbEvent({
+    type: "position.opened",
+    order: serializeOrder(filledOrder),
+    position: serializePosition(position),
   });
+
+  Object.assign(order, filledOrder);
+  position.order = order;
+  openPositions.push(position);
 };

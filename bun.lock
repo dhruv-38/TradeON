@@ -64,7 +64,18 @@
         "@repo/db": "workspace:*",
         "@repo/market": "workspace:*",
         "@repo/redis": "workspace:*",
-        "@repo/trading": "workspace:*",
+        "@repo/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
+    "apps/engine-worker": {
+      "name": "engine-worker",
+      "devDependencies": {
+        "@repo/db": "workspace:*",
+        "@repo/redis": "workspace:*",
         "@repo/typescript-config": "workspace:*",
         "@types/bun": "latest",
       },
@@ -722,6 +733,8 @@
     "encodeurl": ["encodeurl@2.0.0", "", {}, "sha512-Q0n9HRi4m6JuGIV1eFlmvJB7ZEVxu93IrMyiMsGC0lrMJMWzRgx6WGquyfQgZVb31vhGgXnfmPNNXmxnOkRBrg=="],
 
     "engine": ["engine@workspace:apps/engine"],
+
+    "engine-worker": ["engine-worker@workspace:apps/engine-worker"],
 
     "enhanced-resolve": ["enhanced-resolve@5.23.0", "", { "dependencies": { "graceful-fs": "^4.2.4", "tapable": "^2.3.3" } }, "sha512-yJN/BOOLxcOW2aQgeif9mSnaUB8KtvmMMp56oA1kx1CRfBKbhZm2pJ+NBY+3eOboHxix8lfjWpHE0Ei5U8RbSA=="],
 

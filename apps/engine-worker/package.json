@@ -1,5 +1,5 @@
 {
-  "name": "engine",
+  "name": "engine-worker",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -7,8 +7,7 @@
     "@types/bun": "latest",
     "@repo/typescript-config": "workspace:*",
     "@repo/redis": "workspace:*",
-    "@repo/db": "workspace:*",
-    "@repo/market": "workspace:*"
+    "@repo/db": "workspace:*"
   },
   "scripts": {
     "dev": "bun run --watch src/index.ts"
