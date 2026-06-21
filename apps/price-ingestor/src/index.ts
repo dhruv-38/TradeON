@@ -1,119 +1,155 @@
 import WebSocket from "ws";
 import { config } from "@repo/config";
-import { redis, REDIS_CHANNELS, REDIS_KEYS, REDIS_STREAMS } from "@repo/redis"
+import { redis, REDIS_CHANNELS, REDIS_STREAMS } from "@repo/redis";
 
-const ws = new WebSocket(config.BACKPACK_WS_URL);
+const RECONNECT_DELAY_MS = 2_000;
+const STALE_CONNECTION_MS = 20_000;
+const WATCHDOG_INTERVAL_MS = 5_000;
 
-ws.on("open", () => {
-  console.log("Connected");
-  ws.send(JSON.stringify({
-    method: "SUBSCRIBE",
-    params: [
-      "bookTicker.BTC_USDC",
-      "bookTicker.ETH_USDC",
-      "bookTicker.SOL_USDC",
-    ],
-  }));
-});
+let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+let isShuttingDown = false;
 
-ws.on("message", async (raw) => {
-  try {
-    const message = JSON.parse(raw.toString());
+function scheduleReconnect() {
+  if (isShuttingDown || reconnectTimer) {
+    return;
+  }
 
-    if (!message.stream || !message.data) {
-      return;
-    }
-    const data = message.data;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = undefined;
+    connect();
+  }, RECONNECT_DELAY_MS);
+}
 
-    if (data.e !== "bookTicker") {
-      return;
-    }
+function connect() {
+  const ws = new WebSocket(config.BACKPACK_WS_URL);
+  let lastTickerAt = Date.now();
+  let watchdog: ReturnType<typeof setInterval> | undefined;
 
-    const payload = {
-      bid: Number(data.b),
-      ask: Number(data.a),
-      timestamp: Date.now(),
-    };
+  ws.on("open", () => {
+    console.log("Connected to Backpack market data");
+    lastTickerAt = Date.now();
+    ws.send(
+      JSON.stringify({
+        method: "SUBSCRIBE",
+        params: [
+          "bookTicker.BTC_USDC",
+          "bookTicker.ETH_USDC",
+          "bookTicker.SOL_USDC",
+        ],
+      }),
+    );
 
-    switch (data.s) {
-      case "BTC_USDC":
-        await redis.publish(REDIS_CHANNELS.BTC_USDC,JSON.stringify(payload));
-        // await redis.set(REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
-        await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
-          {
+    watchdog = setInterval(() => {
+      if (Date.now() - lastTickerAt > STALE_CONNECTION_MS) {
+        console.warn("Backpack market data is stale; reconnecting...");
+        ws.terminate();
+      }
+    }, WATCHDOG_INTERVAL_MS);
+  });
+
+  ws.on("message", async (raw) => {
+    try {
+      const message = JSON.parse(raw.toString());
+
+      if (!message.stream || !message.data) {
+        return;
+      }
+      const data = message.data;
+
+      if (data.e !== "bookTicker") {
+        return;
+      }
+
+      lastTickerAt = Date.now();
+
+      const payload = {
+        bid: Number(data.b),
+        ask: Number(data.a),
+        timestamp: Date.now(),
+      };
+
+      switch (data.s) {
+        case "BTC_USDC":
+          await redis.publish(REDIS_CHANNELS.BTC_USDC, JSON.stringify(payload));
+          // await redis.set(REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
+          await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
             price: String(payload.ask),
-          }
-        );
-        await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM,"*",
-          {
+          });
+          await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,
 
             bid: String(payload.bid),
 
             ask: String(payload.ask),
 
-            timestamp:String(payload.timestamp),
-          }
-        );
-        break;
+            timestamp: String(payload.timestamp),
+          });
+          break;
 
-      case "ETH_USDC":
-        await redis.publish(REDIS_CHANNELS.ETH_USDC,JSON.stringify(payload));
-        // await redis.set(REDIS_KEYS.ETH_USDC, JSON.stringify(payload));
-        await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
-          {
+        case "ETH_USDC":
+          await redis.publish(REDIS_CHANNELS.ETH_USDC, JSON.stringify(payload));
+          // await redis.set(REDIS_KEYS.ETH_USDC, JSON.stringify(payload));
+          await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
             price: String(payload.ask),
-          }
-        );
-        await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM,"*",
-          {
+          });
+          await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,
 
             bid: String(payload.bid),
 
             ask: String(payload.ask),
 
-            timestamp:String(payload.timestamp),
-          }
-        );
-        break;
+            timestamp: String(payload.timestamp),
+          });
+          break;
 
-      case "SOL_USDC":
-        await redis.publish(REDIS_CHANNELS.SOL_USDC,JSON.stringify(payload));
-        // await redis.set(REDIS_KEYS.SOL_USDC, JSON.stringify(payload));
-        await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*",
-          {
+        case "SOL_USDC":
+          await redis.publish(REDIS_CHANNELS.SOL_USDC, JSON.stringify(payload));
+          // await redis.set(REDIS_KEYS.SOL_USDC, JSON.stringify(payload));
+          await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
             price: String(payload.ask),
-          }
-        );
-        await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM,"*",
-          {
+          });
+          await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,
 
             bid: String(payload.bid),
 
             ask: String(payload.ask),
 
-            timestamp:String(payload.timestamp),
-          }
-        );
-        break;
+            timestamp: String(payload.timestamp),
+          });
+          break;
+      }
+    } catch (error) {
+      console.error(error);
     }
-  } catch (error) {
-    console.error(error);
+  });
+
+  ws.on("close", () => {
+    if (watchdog) {
+      clearInterval(watchdog);
+    }
+    console.log("Backpack WS disconnected; reconnecting...");
+    scheduleReconnect();
+  });
+
+  ws.on("error", (error) => {
+    console.error("Backpack WS error:", error);
+    ws.terminate();
+  });
+}
+
+process.on("SIGINT", () => {
+  isShuttingDown = true;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
   }
 });
 
-ws.on("close", () => {
-  console.log("Backpack WS disconnected");
-});
-
-ws.on("error", (err) => {
-  console.error("WS Error:", err);
-});
+connect();

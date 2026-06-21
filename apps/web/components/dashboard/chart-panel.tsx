@@ -4,12 +4,12 @@ import {
   CandlestickSeries,
   ColorType,
   CrosshairMode,
-  HistogramSeries,
   LineStyle,
+  TickMarkType,
   createChart,
   type CandlestickData,
-  type HistogramData,
   type ISeriesApi,
+  type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
@@ -43,31 +43,52 @@ export function ChartPanel({
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const liveCandleRef = useRef<CandlestickData<UTCTimestamp> | null>(null);
   const lastTickTimestampRef = useRef(0);
-  const [liveCandle, setLiveCandle] = useState<CandlestickData<UTCTimestamp> | null>(null);
+  const [liveCandle, setLiveCandle] =
+    useState<CandlestickData<UTCTimestamp> | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) {
       return;
     }
 
-    const candleData: CandlestickData<UTCTimestamp>[] = candles.map((candle) => ({
-      time: Math.floor(new Date(candle.bucket).getTime() / 1000) as UTCTimestamp,
-      open: Number(candle.open),
-      high: Number(candle.high),
-      low: Number(candle.low),
-      close: Number(candle.close),
-    }));
-    const volumeData: HistogramData<UTCTimestamp>[] = candles.map((candle) => {
-      const rising = Number(candle.close) >= Number(candle.open);
-      return {
-        time: Math.floor(new Date(candle.bucket).getTime() / 1000) as UTCTimestamp,
-        value: Number(candle.volume ?? 0),
-        color: rising ? "rgba(25, 195, 125, 0.42)" : "rgba(239, 83, 80, 0.42)",
-      };
+    const candleData: CandlestickData<UTCTimestamp>[] = candles.map(
+      (candle) => ({
+        time: Math.floor(
+          new Date(candle.bucket).getTime() / 1000,
+        ) as UTCTimestamp,
+        open: Number(candle.open),
+        high: Number(candle.high),
+        low: Number(candle.low),
+        close: Number(candle.close),
+      }),
+    );
+    const locale = navigator.language;
+    const timeFormatter = new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const dateFormatter = new Intl.DateTimeFormat(locale, {
+      day: "2-digit",
+      month: "short",
+    });
+    const monthFormatter = new Intl.DateTimeFormat(locale, { month: "short" });
+    const yearFormatter = new Intl.DateTimeFormat(locale, { year: "numeric" });
+    const crosshairTimeFormatter = new Intl.DateTimeFormat(locale, {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
     });
 
     const chart = createChart(containerRef.current, {
       autoSize: true,
+      localization: {
+        locale,
+        timeFormatter: (time: Time) =>
+          crosshairTimeFormatter.format(chartTimeToDate(time)),
+      },
       layout: {
         background: { type: ColorType.Solid, color: "#ffffff" },
         textColor: "#647b90",
@@ -99,7 +120,7 @@ export function ChartPanel({
       },
       rightPriceScale: {
         borderColor: "rgba(106, 137, 167, 0.38)",
-        scaleMargins: { top: 0.08, bottom: 0.24 },
+        scaleMargins: { top: 0.08, bottom: 0.08 },
       },
       timeScale: {
         borderColor: "rgba(106, 137, 167, 0.38)",
@@ -107,6 +128,20 @@ export function ChartPanel({
         secondsVisible: false,
         rightOffset: 4,
         barSpacing: 8,
+        tickMarkFormatter: (time: Time, tickMarkType: TickMarkType) => {
+          const date = chartTimeToDate(time);
+
+          switch (tickMarkType) {
+            case TickMarkType.Year:
+              return yearFormatter.format(date);
+            case TickMarkType.Month:
+              return monthFormatter.format(date);
+            case TickMarkType.DayOfMonth:
+              return dateFormatter.format(date);
+            default:
+              return timeFormatter.format(date);
+          }
+        },
       },
     });
 
@@ -126,15 +161,6 @@ export function ChartPanel({
     liveCandleRef.current = candleData.at(-1) ?? null;
     lastTickTimestampRef.current = 0;
     setLiveCandle(candleData.at(-1) ?? null);
-
-    const volume = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: "volume" },
-      priceScaleId: "",
-    });
-    volume.priceScale().applyOptions({
-      scaleMargins: { top: 0.82, bottom: 0 },
-    });
-    volume.setData(volumeData);
 
     if (candleData.length > 0) {
       chart.timeScale().fitContent();
@@ -191,23 +217,9 @@ export function ChartPanel({
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-white">
       <div className="flex h-11 shrink-0 items-center justify-between border-b border-[#e1e7ec] bg-white px-5">
-        <div className="flex h-full items-center gap-6 text-xs font-semibold text-[#7b8d9d]">
-          <button type="button" className="h-full border-b-2 border-[#263747] text-[#263747]">
-            Chart
-          </button>
-          <button
-            type="button"
-            className="h-full border-b-2 border-transparent transition hover:text-[#263747]"
-          >
-            Depth
-          </button>
-          <button
-            type="button"
-            className="h-full border-b-2 border-transparent transition hover:text-[#263747]"
-          >
-            Market Info
-          </button>
-        </div>
+        <span className="flex h-full items-center border-b-2 border-[#263747] text-xs font-semibold text-[#263747]">
+          Chart
+        </span>
         <div className="flex items-center gap-1">
           {(["1m", "5m", "1h", "4h", "1d"] as const).map((option) => (
             <button
@@ -232,12 +244,20 @@ export function ChartPanel({
         </span>
         {liveCandle ? (
           <>
-            <span className="text-[#19c37d]">O {formatPrice(liveCandle.open)}</span>
-            <span className="text-[#19c37d]">H {formatPrice(liveCandle.high)}</span>
-            <span className="text-[#ef5350]">L {formatPrice(liveCandle.low)}</span>
+            <span className="text-[#19c37d]">
+              O {formatPrice(liveCandle.open)}
+            </span>
+            <span className="text-[#19c37d]">
+              H {formatPrice(liveCandle.high)}
+            </span>
+            <span className="text-[#ef5350]">
+              L {formatPrice(liveCandle.low)}
+            </span>
             <span
               className={
-                liveCandle.close >= liveCandle.open ? "text-[#19c37d]" : "text-[#ef5350]"
+                liveCandle.close >= liveCandle.open
+                  ? "text-[#19c37d]"
+                  : "text-[#ef5350]"
               }
             >
               C {formatPrice(liveCandle.close)}
@@ -282,6 +302,18 @@ function getBucketTime(timestamp: number, timeframe: Timeframe) {
   const interval = intervalSeconds[timeframe];
 
   return Math.floor(timestampSeconds / interval) * interval;
+}
+
+function chartTimeToDate(time: Time) {
+  if (typeof time === "number") {
+    return new Date(time * 1000);
+  }
+
+  if (typeof time === "string") {
+    return new Date(`${time}T00:00:00Z`);
+  }
+
+  return new Date(Date.UTC(time.year, time.month - 1, time.day));
 }
 
 function formatSymbol(symbol: SymbolCode) {

@@ -10,7 +10,6 @@ import type {
 
 const tabs = [
   "Positions",
-  "Open Orders",
   "Order History",
   "Position History",
   "Ledger",
@@ -143,17 +142,6 @@ function TabContent({
           );
         })}
       </DataTable>
-    );
-  }
-
-  if (activeTab === "Open Orders") {
-    const openOrders = orders.filter((order) =>
-      ["PENDING", "OPEN"].includes(order.status),
-    );
-    return openOrders.length ? (
-      <OrdersTable orders={openOrders} />
-    ) : (
-      <EmptyState message="No open orders." />
     );
   }
 

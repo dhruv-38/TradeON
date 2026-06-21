@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { ActivityPanel } from "../../components/dashboard/activity-panel";
 import { ChartPanel } from "../../components/dashboard/chart-panel";
 import { OrderTicket } from "../../components/dashboard/order-ticket";
@@ -46,24 +46,25 @@ const SYMBOL_OPTIONS: Array<{
     symbol: "BTC_USDC",
     label: "BTC / USDC",
     shortLabel: "BTC",
-    description: "Bitcoin perpetual",
+    description: "Bitcoin",
   },
   {
     symbol: "ETH_USDC",
     label: "ETH / USDC",
     shortLabel: "ETH",
-    description: "Ethereum perpetual",
+    description: "Ethereum",
   },
   {
     symbol: "SOL_USDC",
     label: "SOL / USDC",
     shortLabel: "SOL",
-    description: "Solana perpetual",
+    description: "Solana",
   },
 ];
 
 export function DashboardClient() {
   const router = useRouter();
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const setUser = useAuthStore((state) => state.setUser);
   const clearUser = useAuthStore((state) => state.clearUser);
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
@@ -82,6 +83,9 @@ export function DashboardClient() {
   const [isChartLoading, setIsChartLoading] = useState(true);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [isFundingWallet, setIsFundingWallet] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isDepositFormOpen, setIsDepositFormOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
   const [closingPositionId, setClosingPositionId] = useState<string | null>(
     null,
   );
@@ -92,6 +96,22 @@ export function DashboardClient() {
     SYMBOL_OPTIONS.find((option) => option.symbol === selectedSymbol) ??
     SYMBOL_OPTIONS[0]!;
   const livePrice = livePrices[selectedSymbol] ?? null;
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) {
+      return;
+    }
+
+    const closeAccountMenu = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+        setIsDepositFormOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeAccountMenu);
+    return () => document.removeEventListener("pointerdown", closeAccountMenu);
+  }, [isAccountMenuOpen]);
 
   const refreshAccountData = async () => {
     const [nextWallet, nextOrders, liveState, nextHistory, nextLedger] =
@@ -294,10 +314,27 @@ export function DashboardClient() {
       setWallet(nextWallet);
       setOrderMessage("Funds added successfully.");
       setLedger(await getLedger());
+      return true;
     } catch (error) {
       setOrderError(getApiErrorMessage(error));
+      return false;
     } finally {
       setIsFundingWallet(false);
+    }
+  };
+
+  const handleDepositSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const amount = Number(depositAmount);
+    if (amount <= 0) {
+      return;
+    }
+
+    const succeeded = await handleDeposit(amount);
+    if (succeeded) {
+      setDepositAmount("");
+      setIsDepositFormOpen(false);
+      setIsAccountMenuOpen(false);
     }
   };
 
@@ -377,15 +414,104 @@ export function DashboardClient() {
               )}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            title={userName ? `Log out ${userName}` : "Log out"}
-            aria-label="Log out"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-[#cad6e0] bg-white text-xs font-bold text-[#384959] transition hover:border-[#6a89a7] hover:bg-[#f3f7fa]"
-          >
-            {userName.charAt(0).toUpperCase() || "U"}
-          </button>
+          <div ref={accountMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAccountMenuOpen((open) => !open);
+                setIsDepositFormOpen(false);
+              }}
+              title={userName ? `${userName} account menu` : "Account menu"}
+              aria-label="Open account menu"
+              aria-expanded={isAccountMenuOpen}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#cad6e0] bg-white text-xs font-bold text-[#384959] transition hover:border-[#6a89a7] hover:bg-[#f3f7fa]"
+            >
+              {userName.charAt(0).toUpperCase() || "U"}
+            </button>
+
+            {isAccountMenuOpen ? (
+              <div className="absolute right-0 top-10 z-50 w-60 rounded-md border border-[#d7e0e8] bg-white p-2 shadow-[0_12px_32px_rgba(38,55,71,0.16)]">
+                {isDepositFormOpen ? (
+                  <form
+                    onSubmit={handleDepositSubmit}
+                    className="space-y-3 p-2"
+                  >
+                    <div>
+                      <p className="text-sm font-bold text-[#263747]">
+                        Deposit funds
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-[#7b8d9d]">
+                        Add USDC to your trading balance.
+                      </p>
+                    </div>
+                    <label className="block">
+                      <span className="mb-1.5 block text-[11px] font-medium text-[#7b8d9d]">
+                        Amount
+                      </span>
+                      <input
+                        suppressHydrationWarning
+                        autoFocus
+                        type="number"
+                        min="1"
+                        step="any"
+                        value={depositAmount}
+                        onChange={(event) =>
+                          setDepositAmount(event.target.value)
+                        }
+                        placeholder="0.00"
+                        className="h-9 w-full rounded border border-[#d3dce4] bg-[#f8fafb] px-3 text-sm font-semibold outline-none focus:border-[#6a89a7] focus:bg-white"
+                      />
+                    </label>
+                    {orderError ? (
+                      <p className="text-[11px] font-medium text-[#d44946]">
+                        {orderError}
+                      </p>
+                    ) : null}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDepositFormOpen(false);
+                          setDepositAmount("");
+                        }}
+                        className="h-9 rounded border border-[#d3dce4] text-xs font-bold text-[#58758e] transition hover:bg-[#f3f7fa]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isFundingWallet || Number(depositAmount) <= 0}
+                        className="h-9 rounded bg-[#263747] text-xs font-bold text-white transition hover:bg-[#384959] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isFundingWallet ? "Adding..." : "Deposit"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrderError(null);
+                        setOrderMessage(null);
+                        setIsDepositFormOpen(true);
+                      }}
+                      className="flex h-10 w-full items-center rounded px-3 text-left text-xs font-semibold text-[#263747] transition hover:bg-[#f3f7fa]"
+                    >
+                      Deposit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex h-10 w-full items-center rounded px-3 text-left text-xs font-semibold text-[#d44946] transition hover:bg-[#ef5350]/5"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -491,11 +617,9 @@ export function DashboardClient() {
             wallet={wallet}
             livePrice={livePrice}
             isSubmitting={isSubmittingOrder}
-            isFunding={isFundingWallet}
             errorMessage={orderError}
             successMessage={orderMessage}
             onSubmit={handleCreateOrder}
-            onDeposit={handleDeposit}
           />
         </div>
       </div>

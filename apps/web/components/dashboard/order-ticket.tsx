@@ -14,49 +14,37 @@ type OrderTicketProps = {
   wallet: Wallet | null;
   livePrice: MarketPrice | null;
   isSubmitting: boolean;
-  isFunding: boolean;
   errorMessage: string | null;
   successMessage: string | null;
   onSubmit: (payload: CreateOrderPayload) => Promise<void>;
-  onDeposit: (amount: number) => Promise<void>;
 };
+
+const LEVERAGE_OPTIONS = [
+  1,
+  ...Array.from({ length: 50 }, (_, index) => (index + 1) * 2),
+];
 
 export function OrderTicket({
   symbol,
   wallet,
   livePrice,
   isSubmitting,
-  isFunding,
   errorMessage,
   successMessage,
   onSubmit,
-  onDeposit,
 }: OrderTicketProps) {
   const [side, setSide] = useState<OrderSide>("BUY");
   const [quantity, setQuantity] = useState("");
   const [leverage, setLeverage] = useState(10);
   const [takeProfit, setTakeProfit] = useState("");
   const [stopLoss, setStopLoss] = useState("");
-  const [positionPercent, setPositionPercent] = useState(0);
-  const [depositAmount, setDepositAmount] = useState("");
-  const [isDepositOpen, setIsDepositOpen] = useState(false);
 
   const marketPrice = side === "BUY" ? livePrice?.ask : livePrice?.bid;
+  const baseAsset = symbol.replace(/_USDC$/, "");
   const availableBalance = Number(wallet?.availableBalance ?? 0);
   const quantityValue = Number(quantity || 0);
   const orderValue = quantityValue * Number(marketPrice ?? 0);
   const marginRequired = leverage > 0 ? orderValue / leverage : 0;
-
-  const handlePercentChange = (percent: number) => {
-    setPositionPercent(percent);
-    if (!marketPrice || availableBalance <= 0) {
-      setQuantity("");
-      return;
-    }
-
-    const availableMargin = availableBalance * (percent / 100);
-    setQuantity(((availableMargin * leverage) / marketPrice).toFixed(6));
-  };
 
   const handleSubmit = async () => {
     if (!marketPrice || quantityValue <= 0) {
@@ -99,14 +87,6 @@ export function OrderTicket({
       <div className="flex h-11 shrink-0 items-center gap-5 border-b border-[#e1e7ec] px-5">
         <button
           type="button"
-          disabled
-          title="Limit execution is not implemented by the engine yet."
-          className="h-full cursor-not-allowed border-b-2 border-transparent px-1 text-xs font-semibold text-[#a5b1bb]"
-        >
-          Limit
-        </button>
-        <button
-          type="button"
           className="h-full border-b-2 border-[#263747] px-1 text-xs font-semibold text-[#263747]"
         >
           Market
@@ -116,103 +96,61 @@ export function OrderTicket({
       <div className="min-h-0 flex-1 overflow-y-auto bg-white px-5 py-4">
         <div className="mb-3 flex items-center justify-between text-xs">
           <span className="font-medium text-[#7b8d9d]">Available balance</span>
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-[#263747]">
-              {formatCurrency(availableBalance)}
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsDepositOpen((open) => !open)}
-              className="text-[10px] font-bold text-[#5c7d98] hover:text-[#263747]"
-            >
-              Deposit
-            </button>
-          </div>
+          <span className="font-bold text-[#263747]">
+            {formatCurrency(availableBalance)}
+          </span>
         </div>
 
         <div className="space-y-2.5">
-          {isDepositOpen ? (
-            <div className="flex gap-2 border-b border-[#e1e7ec] pb-3">
-              <input
-                suppressHydrationWarning
-                type="number"
-                min="1"
-                step="any"
-                value={depositAmount}
-                onChange={(event) => setDepositAmount(event.target.value)}
-                placeholder="Amount"
-                className="h-9 min-w-0 flex-1 rounded border border-[#d3dce4] bg-[#f8fafb] px-3 text-xs font-semibold outline-none focus:border-[#6a89a7]"
-              />
-              <button
-                type="button"
-                disabled={isFunding || Number(depositAmount) <= 0}
-                onClick={async () => {
-                  await onDeposit(Number(depositAmount));
-                  setDepositAmount("");
-                  setIsDepositOpen(false);
-                }}
-                className="h-9 rounded bg-[#263747] px-3 text-xs font-bold text-white disabled:opacity-50"
-              >
-                {isFunding ? "Adding..." : "Add"}
-              </button>
-            </div>
-          ) : null}
-
-          <ReadOnlyField label="Market price" value={formatPrice(marketPrice)} suffix="USDC" />
+          <ReadOnlyField
+            label="Market price"
+            value={formatPrice(marketPrice)}
+            suffix="USDC"
+          />
           <OrderField
             label="Quantity"
             value={quantity}
-            suffix="BTC"
-            onChange={(value) => {
-              setQuantity(value);
-              setPositionPercent(0);
-            }}
+            suffix={baseAsset}
+            onChange={setQuantity}
           />
 
           <div>
             <div className="mb-2 flex items-center justify-between text-[11px] font-medium text-[#7b8d9d]">
-              <span>Position size</span>
-              <span>{positionPercent}%</span>
+              <span>Leverage</span>
+              <span className="font-bold text-[#263747]">{leverage}x</span>
             </div>
             <input
               suppressHydrationWarning
-              aria-label="Position size"
+              aria-label="Leverage"
               type="range"
               min="0"
-              max="100"
-              step="25"
-              value={positionPercent}
-              onChange={(event) => handlePercentChange(Number(event.target.value))}
+              max={LEVERAGE_OPTIONS.length - 1}
+              step="1"
+              value={LEVERAGE_OPTIONS.indexOf(leverage)}
+              onChange={(event) => {
+                const nextLeverage =
+                  LEVERAGE_OPTIONS[Number(event.target.value)];
+                if (nextLeverage !== undefined) {
+                  setLeverage(nextLeverage);
+                }
+              }}
               className="w-full accent-[#88bdf2]"
             />
             <div className="mt-1 flex justify-between text-[10px] text-[#8a9aa8]">
-              <span>0</span>
-              <span>25</span>
-              <span>50</span>
-              <span>75</span>
-              <span>100%</span>
+              <span>1x</span>
+              <span>20x</span>
+              <span>40x</span>
+              <span>60x</span>
+              <span>80x</span>
+              <span>100x</span>
             </div>
           </div>
 
-          <label className="block">
-            <span className="mb-1.5 block text-[11px] font-medium text-[#7b8d9d]">
-              Leverage
-            </span>
-            <select
-              suppressHydrationWarning
-              value={leverage}
-              onChange={(event) => setLeverage(Number(event.target.value))}
-              className="h-10 w-full rounded border border-[#d3dce4] bg-[#f8fafb] px-3 text-sm font-semibold text-[#263747] outline-none focus:border-[#6a89a7] focus:bg-white"
-            >
-              {[1, 2, 5, 10, 20, 50, 100].map((value) => (
-                <option key={value} value={value}>
-                  {value}x
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <ReadOnlyField label="Order value" value={formatPrice(orderValue)} suffix="USDC" />
+          <ReadOnlyField
+            label="Order value"
+            value={formatPrice(orderValue)}
+            suffix="USDC"
+          />
 
           <div className="grid grid-cols-2 gap-2">
             <OrderField
@@ -230,8 +168,14 @@ export function OrderTicket({
           </div>
 
           <div className="space-y-2 border-y border-[#e1e7ec] py-3 text-xs">
-            <SummaryRow label="Margin required" value={formatCurrency(marginRequired)} />
-            <SummaryRow label="Estimated fee" value={formatCurrency(orderValue * 0.0005)} />
+            <SummaryRow
+              label="Margin required"
+              value={formatCurrency(marginRequired)}
+            />
+            <SummaryRow
+              label="Estimated fee"
+              value={formatCurrency(orderValue * 0.0005)}
+            />
           </div>
 
           {errorMessage ? (
@@ -258,7 +202,9 @@ export function OrderTicket({
               : "bg-[#d44946] hover:bg-[#e0524f]"
           }`}
         >
-          {isSubmitting ? "Submitting..." : `${side === "BUY" ? "Buy" : "Sell"} BTC`}
+          {isSubmitting
+            ? "Submitting..."
+            : `${side === "BUY" ? "Buy" : "Sell"} ${baseAsset}`}
         </button>
       </div>
     </aside>
@@ -278,7 +224,9 @@ function OrderField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[11px] font-medium text-[#7b8d9d]">{label}</span>
+      <span className="mb-1.5 block text-[11px] font-medium text-[#7b8d9d]">
+        {label}
+      </span>
       <div className="flex h-10 items-center rounded border border-[#d3dce4] bg-[#f8fafb] px-3 transition focus-within:border-[#6a89a7] focus-within:bg-white">
         <input
           suppressHydrationWarning
@@ -290,7 +238,9 @@ function OrderField({
           placeholder="0"
           className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#263747] outline-none"
         />
-        <span className="ml-2 text-[11px] font-semibold text-[#7b8d9d]">{suffix}</span>
+        <span className="ml-2 text-[11px] font-semibold text-[#7b8d9d]">
+          {suffix}
+        </span>
       </div>
     </label>
   );
@@ -307,10 +257,16 @@ function ReadOnlyField({
 }) {
   return (
     <div>
-      <span className="mb-1.5 block text-[11px] font-medium text-[#7b8d9d]">{label}</span>
+      <span className="mb-1.5 block text-[11px] font-medium text-[#7b8d9d]">
+        {label}
+      </span>
       <div className="flex h-10 items-center rounded border border-[#d3dce4] bg-[#f8fafb] px-3">
-        <span className="min-w-0 flex-1 text-sm font-semibold text-[#263747]">{value}</span>
-        <span className="ml-2 text-[11px] font-semibold text-[#7b8d9d]">{suffix}</span>
+        <span className="min-w-0 flex-1 text-sm font-semibold text-[#263747]">
+          {value}
+        </span>
+        <span className="ml-2 text-[11px] font-semibold text-[#7b8d9d]">
+          {suffix}
+        </span>
       </div>
     </div>
   );
