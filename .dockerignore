@@ -1,8 +1,34 @@
+# Ignore all node_modules everywhere in the repo
 node_modules
-.git
-.turbo
+**/node_modules
+
+# Ignore build outputs (adjust if your apps output to different folders like .next)
 dist
+**/dist
 build
+**/build
+
+# Ignore monorepo cache
+.turbo
+**/.turbo
+
+# Ignore environment variables (pass these via docker-compose instead)
 .env
+**/.env
+.env.*
+**/.env.*
+
+# Ignore Git and OS files
+.git
+.gitignore
+.DS_Store
+
+# Ignore Docker-related files so they don't get copied into the image
 Dockerfile
 docker-compose.yml
+.dockerignore
+
+# Ignore logs
+npm-debug.log
+yarn-error.log
+bun.log

@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: TradeON
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/Backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: production
+      JWT_SECRET: thisissecret
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:123456@postgres:5432/TradeON?schema=public
+      BACKPACK_WS_URL: wss://ws.backpack.exchange
+      TIMESCALE_DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/tradeon_timescale
+    depends_on:
+      - postgres
+      - redis
