@@ -145,7 +145,7 @@
     "packages/config": {
       "name": "@repo/config",
       "dependencies": {
-        "zod": "^4.3.6",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",
