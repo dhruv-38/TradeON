@@ -183,6 +183,7 @@ const persistLiquidation = async (
       },
       data: {
         status: PositionStatus.LIQUIDATED,
+        realizedPnl: new Prisma.Decimal(event.realizedPnl),
         closedAt: new Date(event.closedAt),
       },
     });

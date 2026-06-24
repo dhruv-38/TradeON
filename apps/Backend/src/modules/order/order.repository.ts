@@ -29,16 +29,26 @@ export const createOrder = async (data: CreateOrderRepositoryInput) => {
         leverage: data.leverage,
         marginUsed: new Prisma.Decimal(data.marginUsed),
         expectedPrice: new Prisma.Decimal(data.expectedPrice),
-        takeProfit: data.takeProfit ? new Prisma.Decimal(data.takeProfit) : undefined,
+        takeProfit: data.takeProfit
+          ? new Prisma.Decimal(data.takeProfit)
+          : undefined,
         stopLoss: data.stopLoss ? new Prisma.Decimal(data.stopLoss) : undefined,
         slippage: data.slippage ? new Prisma.Decimal(data.slippage) : undefined,
         status: OrderStatus.PENDING,
       },
-    })
+    });
+    await tx.outboxEvent.create({
+      data: {
+        type: "order.created",
+        payload: {
+          orderId: result.id,
+          userId: result.userId,
+        },
+      },
+    });
     return result;
-  })
+  });
 };
-
 
 export const getOrders = async (userId: number) => {
   return prisma.order.findMany({

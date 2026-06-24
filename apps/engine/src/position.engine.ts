@@ -1,10 +1,11 @@
 import { PositionStatus, Prisma } from "@repo/db";
 import { getMarketPrice, openPositions } from "@repo/market";
-import { publishEngineDbEvent, publishUserEvent } from "@repo/redis";
+import { publishEngineTransition } from "@repo/redis";
 import {
   forgetRecentPosition,
   rememberRecentPosition,
 } from "./position-history.js";
+import { calculateRealizedPnl, getExitSide } from "./pricing.js";
 
 export type CloseReason = "USER" | "TAKE_PROFIT" | "STOP_LOSS";
 
@@ -17,30 +18,24 @@ export const closeMemoryPosition = async (
   const index = openPositions.findIndex(
     (position) => position.id === positionId,
   );
-  if (index === -1) return;
+  if (index === -1) {
+    throw new Error("Open position not found");
+  }
 
   const position = openPositions[index]!;
   if (expectedUserId !== undefined && position.userId !== expectedUserId) {
     throw new Error("Position does not belong to this user");
   }
 
-  const exitSide = position.side === "BUY" ? "SELL" : "BUY";
+  const exitSide = getExitSide(position.side);
   const exitPrice = knownPrice ?? getMarketPrice(position.symbol, exitSide);
-  const realizedPnl =
-    position.side === "BUY"
-      ? (exitPrice - Number(position.entryPrice)) * Number(position.qty)
-      : (Number(position.entryPrice) - exitPrice) * Number(position.qty);
+  const realizedPnl = calculateRealizedPnl(
+    position.side,
+    Number(position.entryPrice),
+    exitPrice,
+    Number(position.qty),
+  );
   const closedAt = new Date();
-
-  await publishEngineDbEvent({
-    type: "position.closed",
-    positionId: position.id,
-    userId: position.userId,
-    exitPrice: String(exitPrice),
-    realizedPnl: String(realizedPnl),
-    closedAt: closedAt.toISOString(),
-    reason,
-  });
 
   const previous = {
     status: position.status,
@@ -61,11 +56,26 @@ export const closeMemoryPosition = async (
   rememberRecentPosition(position);
 
   try {
-    await publishUserEvent(position.userId, "position.closed", {
-      positionId: position.id,
-      reason,
-      source: "engine",
-    });
+    await publishEngineTransition(
+      {
+        type: "position.closed",
+        positionId: position.id,
+        userId: position.userId,
+        exitPrice: String(exitPrice),
+        realizedPnl: String(realizedPnl),
+        closedAt: closedAt.toISOString(),
+        reason,
+      },
+      {
+        userId: position.userId,
+        event: "position.closed",
+        payload: {
+          positionId: position.id,
+          reason,
+          source: "engine",
+        },
+      },
+    );
   } catch (error) {
     forgetRecentPosition(position.id);
     position.status = previous.status;
@@ -77,26 +87,6 @@ export const closeMemoryPosition = async (
     openPositions.splice(Math.min(index, openPositions.length), 0, position);
     throw error;
   }
-};
 
-export const removeExternallyClosedPosition = async (positionId: string) => {
-  const index = openPositions.findIndex(
-    (position) => position.id === positionId,
-  );
-  if (index === -1) return;
-
-  const position = openPositions[index]!;
-  const closedAt = new Date();
-  position.status = PositionStatus.CLOSED;
-  position.closedAt = closedAt;
-  position.order.closeTime = closedAt;
-  position.order.updatedAt = closedAt;
-  openPositions.splice(index, 1);
-  rememberRecentPosition(position);
-
-  await publishUserEvent(position.userId, "position.closed", {
-    positionId: position.id,
-    reason: "EXTERNAL",
-    source: "engine",
-  });
+  return position;
 };

@@ -1,58 +1,74 @@
-import { WebSocketServer, WebSocket } from "ws";
+import { config } from "@repo/config";
+import jwt from "jsonwebtoken";
+import { WebSocket, WebSocketServer } from "ws";
 import { broadcastPrices } from "./price.publisher.js";
 import { startUserEventsConsumer } from "./user-events.consumer.js";
-import { startPositionPublisher } from "./position.publisher.js";
 import { startLivePriceCache } from "@repo/market";
 
+type JwtPayload = {
+  id: number;
+  email: string;
+};
+
 const wss = new WebSocketServer({ port: 8080 });
-const clients = new Set<WebSocket>;
+const clients = new Set<WebSocket>();
 const userSockets = new Map<number, Set<WebSocket>>();
-const positionSubscribers = new Map<number, Set<WebSocket>>();
 
-wss.on("connection", (ws) => {
-    clients.add(ws);
-    console.log("Client connected");
+wss.on("connection", (ws, request) => {
+  const token = getCookie(request.headers.cookie, "jwt");
+  const userId = verifyUserId(token);
+  if (userId === null) {
+    ws.close(1008, "Unauthorized");
+    return;
+  }
 
-    ws.send(JSON.stringify({ type: "connected" }));
-    ws.on("message", (raw) => {
-        const msg = JSON.parse(raw.toString());
-        if (msg.type === "subscribe") {
-            const userId = Number(msg.userId);
-            if (!userSockets.has(userId)) {
-                userSockets.set(userId, new Set());
-            }
+  clients.add(ws);
+  if (!userSockets.has(userId)) {
+    userSockets.set(userId, new Set());
+  }
+  userSockets.get(userId)!.add(ws);
 
-            userSockets.get(userId)!.add(ws);
+  ws.send(JSON.stringify({ type: "connected" }));
 
-            console.log(`User ${userId} subscribed`);
-        }
-        if (msg.type === "positions") {
-
-            const userId = Number(msg.userId);
-
-            if (!positionSubscribers.has(userId)) {
-                positionSubscribers.set(userId, new Set());
-            }
-            positionSubscribers.get(userId)!.add(ws);
-            console.log(`User ${userId} subscribed to positions`);
-        }
-    });
-
-    ws.on("close", () => {
-        clients.delete(ws);
-        for (const [, sockets] of userSockets) {
-            sockets.delete(ws);
-        }
-        for (const [, sockets] of positionSubscribers) {
-            sockets.delete(ws);
-        }
-        console.log("Client disconnected");
-    });
+  ws.on("close", () => {
+    clients.delete(ws);
+    const sockets = userSockets.get(userId);
+    sockets?.delete(ws);
+    if (sockets?.size === 0) {
+      userSockets.delete(userId);
+    }
+  });
 });
 
 await startLivePriceCache();
-broadcastPrices(clients);
-startUserEventsConsumer(userSockets);
-startPositionPublisher(positionSubscribers);
+void broadcastPrices(clients);
+void startUserEventsConsumer(userSockets).catch((error) => {
+  console.error("User event consumer stopped:", error);
+  process.exit(1);
+});
 
 console.log("WS Server running on :8080");
+
+function getCookie(header: string | undefined, name: string) {
+  if (!header) return undefined;
+
+  for (const part of header.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) {
+      return decodeURIComponent(value.join("="));
+    }
+  }
+
+  return undefined;
+}
+
+function verifyUserId(token: string | undefined) {
+  if (!token) return null;
+
+  try {
+    const payload = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
+    return Number.isInteger(payload.id) ? payload.id : null;
+  } catch {
+    return null;
+  }
+}

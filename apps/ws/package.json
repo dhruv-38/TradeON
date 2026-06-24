@@ -5,10 +5,10 @@
   "private": true,
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/jsonwebtoken": "^9.0.10",
     "@repo/typescript-config": "workspace:*",
     "@repo/redis": "workspace:*",
-    "@repo/db": "workspace:*",
-    "@repo/market":"workspace:*"
+    "@repo/market": "workspace:*"
   },
   "scripts": {
     "dev": "bun run --watch src/index.ts"
@@ -17,7 +17,9 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@repo/config": "workspace:*",
     "@types/ws": "^8.18.1",
+    "jsonwebtoken": "^9.0.3",
     "ws": "^8.21.0"
   }
 }

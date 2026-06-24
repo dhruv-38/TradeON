@@ -32,7 +32,6 @@
         "@repo/redis": "workspace:*",
         "@repo/schemas-types": "workspace:*",
         "@repo/timescaledb": "workspace:*",
-        "@repo/trading": "workspace:*",
         "@repo/typescript-config": "workspace:*",
         "@types/bcrypt": "^6.0.0",
         "@types/bun": "latest",
@@ -127,15 +126,17 @@
     "apps/ws": {
       "name": "ws",
       "dependencies": {
+        "@repo/config": "workspace:*",
         "@types/ws": "^8.18.1",
+        "jsonwebtoken": "^9.0.3",
         "ws": "^8.21.0",
       },
       "devDependencies": {
-        "@repo/db": "workspace:*",
         "@repo/market": "workspace:*",
         "@repo/redis": "workspace:*",
         "@repo/typescript-config": "workspace:*",
         "@types/bun": "latest",
+        "@types/jsonwebtoken": "^9.0.10",
       },
       "peerDependencies": {
         "typescript": "^5",

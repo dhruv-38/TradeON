@@ -1,10 +1,11 @@
 import { PositionStatus, Prisma } from "@repo/db";
 import { openPositions } from "@repo/market";
-import { publishEngineDbEvent, publishUserEvent } from "@repo/redis";
+import { publishEngineTransition } from "@repo/redis";
 import {
   forgetRecentPosition,
   rememberRecentPosition,
 } from "./position-history.js";
+import { getExecutableExitPrice } from "./pricing.js";
 
 const liquidateMemoryPosition = async (
   positionId: string,
@@ -17,17 +18,11 @@ const liquidateMemoryPosition = async (
 
   const position = openPositions[index]!;
   const closedAt = new Date();
-
-  await publishEngineDbEvent({
-    type: "position.liquidated",
-    positionId: position.id,
-    userId: position.userId,
-    exitPrice: String(currentPrice),
-    closedAt: closedAt.toISOString(),
-  });
+  const realizedPnl = new Prisma.Decimal(position.marginUsed).negated();
 
   const previous = {
     status: position.status,
+    realizedPnl: position.realizedPnl,
     closedAt: position.closedAt,
     closePrice: position.order.closePrice,
     closeTime: position.order.closeTime,
@@ -35,6 +30,7 @@ const liquidateMemoryPosition = async (
   };
 
   position.status = PositionStatus.LIQUIDATED;
+  position.realizedPnl = realizedPnl;
   position.closedAt = closedAt;
   position.order.closePrice = new Prisma.Decimal(currentPrice);
   position.order.closeTime = closedAt;
@@ -43,13 +39,28 @@ const liquidateMemoryPosition = async (
   rememberRecentPosition(position);
 
   try {
-    await publishUserEvent(position.userId, "position.liquidated", {
-      positionId: position.id,
-      source: "engine",
-    });
+    await publishEngineTransition(
+      {
+        type: "position.liquidated",
+        positionId: position.id,
+        userId: position.userId,
+        exitPrice: String(currentPrice),
+        realizedPnl: realizedPnl.toString(),
+        closedAt: closedAt.toISOString(),
+      },
+      {
+        userId: position.userId,
+        event: "position.liquidated",
+        payload: {
+          positionId: position.id,
+          source: "engine",
+        },
+      },
+    );
   } catch (error) {
     forgetRecentPosition(position.id);
     position.status = previous.status;
+    position.realizedPnl = previous.realizedPnl;
     position.closedAt = previous.closedAt;
     position.order.closePrice = previous.closePrice;
     position.order.closeTime = previous.closeTime;
@@ -61,7 +72,8 @@ const liquidateMemoryPosition = async (
 
 export const checkLiquidations = async (
   symbol: string,
-  currentPrice: number,
+  bid: number,
+  ask: number,
 ) => {
   const positions = openPositions.filter(
     (position) => position.symbol === symbol,
@@ -69,6 +81,7 @@ export const checkLiquidations = async (
 
   for (const position of positions) {
     if (position.liquidationPrice === null) continue;
+    const currentPrice = getExecutableExitPrice(position.side, bid, ask);
 
     const shouldLiquidate =
       position.side === "BUY"

@@ -11,7 +11,8 @@
     "@repo/market": "workspace:*"
   },
   "scripts": {
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "test": "bun test"
   },
   "peerDependencies": {
     "typescript": "^5"

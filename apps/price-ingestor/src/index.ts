@@ -75,7 +75,8 @@ function connect() {
           await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
-            price: String(payload.ask),
+            bid: String(payload.bid),
+            ask: String(payload.ask),
           });
           await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,
@@ -94,7 +95,8 @@ function connect() {
           await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
-            price: String(payload.ask),
+            bid: String(payload.bid),
+            ask: String(payload.ask),
           });
           await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,
@@ -113,7 +115,8 @@ function connect() {
           await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
-            price: String(payload.ask),
+            bid: String(payload.bid),
+            ask: String(payload.ask),
           });
           await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,

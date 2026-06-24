@@ -1,4 +1,4 @@
-import { redis, REDIS_STREAMS } from "@repo/redis";
+import { handleStreamFailure, redis, REDIS_STREAMS } from "@repo/redis";
 import { checkTpSl } from "./tpsl.engine.js";
 import { checkLiquidations } from "./liquidation.engine.js";
 
@@ -41,10 +41,14 @@ export const startMarketConsumer = async () => {
       for (const message of stream.messages) {
         try {
           const symbol = String(message.message.symbol);
-          const price = Number(message.message.price);
+          const bid = Number(message.message.bid);
+          const ask = Number(message.message.ask);
+          if (!Number.isFinite(bid) || !Number.isFinite(ask)) {
+            throw new Error("Market event has invalid bid/ask prices");
+          }
 
-          await checkTpSl(symbol, price);
-          await checkLiquidations(symbol, price);
+          await checkLiquidations(symbol, bid, ask);
+          await checkTpSl(symbol, bid, ask);
 
           await client.xAck(
             REDIS_STREAMS.MARKET_EVENTS_STREAM,
@@ -53,7 +57,14 @@ export const startMarketConsumer = async () => {
           );
         } catch (error) {
           console.error("Market event failed:", error);
-          await new Promise((resolve) => setTimeout(resolve, 250));
+          await handleStreamFailure(
+            client,
+            REDIS_STREAMS.MARKET_EVENTS_STREAM,
+            GROUP,
+            message.id,
+            message.message,
+            error,
+          );
         }
       }
     }

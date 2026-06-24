@@ -13,11 +13,11 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  name      String
-  email     String   @unique
-  password  String
+  name     String
+  email    String @unique
+  password String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -60,27 +60,27 @@ enum PositionStatus {
 }
 
 model Order {
-  id           Int        @id @default(autoincrement())
-  userId       Int
-  user         User       @relation(fields: [userId],references: [id])
-  position     Position?
-  orderType    OrderType
-  side         OrderSide
-  symbol       Symbol
-  qty          Decimal
-  leverage     Int
-  expectedPrice   Decimal
-  takeProfit   Decimal?
-  stopLoss     Decimal?
-  slippage     Decimal?
-  marginUsed   Decimal
+  id             Int         @id @default(autoincrement())
+  userId         Int
+  user           User        @relation(fields: [userId], references: [id])
+  position       Position?
+  orderType      OrderType
+  side           OrderSide
+  symbol         Symbol
+  qty            Decimal
+  leverage       Int
+  expectedPrice  Decimal
+  takeProfit     Decimal?
+  stopLoss       Decimal?
+  slippage       Decimal?
+  marginUsed     Decimal
   executionPrice Decimal?
-  closePrice   Decimal?
-  executedAt   DateTime?
-  closeTime    DateTime?
-  status       OrderStatus
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  closePrice     Decimal?
+  executedAt     DateTime?
+  closeTime      DateTime?
+  status         OrderStatus
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -88,24 +88,24 @@ model Order {
 }
 
 model Position {
-  id            String @id
+  id String @id
 
-  userId        Int
-  user          User @relation(fields: [userId], references: [id])
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
 
-  orderId       Int @unique
-  order         Order @relation(fields: [orderId], references: [id])
+  orderId Int   @unique
+  order   Order @relation(fields: [orderId], references: [id])
 
-  symbol        Symbol
-  side          OrderSide
+  symbol Symbol
+  side   OrderSide
 
-  qty           Decimal
+  qty Decimal
 
-  leverage      Int
+  leverage Int
 
-  entryPrice    Decimal
+  entryPrice Decimal
 
-  marginUsed    Decimal
+  marginUsed Decimal
 
   liquidationPrice Decimal?
 
@@ -114,10 +114,10 @@ model Position {
   unrealizedPnl Decimal @default(0)
   realizedPnl   Decimal @default(0)
 
-  status        PositionStatus
+  status PositionStatus
 
-  openedAt      DateTime @default(now())
-  closedAt      DateTime?
+  openedAt DateTime  @default(now())
+  closedAt DateTime?
 
   @@index([userId])
   @@index([status])
@@ -140,39 +140,50 @@ enum LedgerStatus {
 }
 
 model Wallet {
-  id                Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  userId            Int      @unique
-  user              User     @relation(fields: [userId], references: [id])
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id])
 
-  asset             String   @default("USD")
+  asset String @default("USDC")
 
-  availableBalance  Decimal  @default(0)
-  lockedBalance     Decimal  @default(0)
+  availableBalance Decimal @default(0)
+  lockedBalance    Decimal @default(0)
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  ledgerEntries     LedgerEntry[]
+  ledgerEntries LedgerEntry[]
 }
 
 model LedgerEntry {
-  id              Int            @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  walletId        Int
-  wallet          Wallet         @relation(fields: [walletId], references: [id])
+  walletId Int
+  wallet   Wallet @relation(fields: [walletId], references: [id])
 
-  amount          Decimal
-  type            LedgerType
-  status          LedgerStatus
+  amount Decimal
+  type   LedgerType
+  status LedgerStatus
 
-  referenceId     Int?
-  referenceType   String?
+  referenceId   Int?
+  referenceType String?
 
-  description     String?
+  description String?
 
-  createdAt       DateTime       @default(now())
+  createdAt DateTime @default(now())
+
   @@index([walletId])
   @@index([referenceId, referenceType])
 }
 
+model OutboxEvent {
+  id          String    @id @default(uuid())
+  type        String
+  payload     Json
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([processedAt, createdAt])
+}

@@ -14,24 +14,24 @@
       "dependsOn": ["^check-types"]
     },
     "dev": {
-      "dependsOn": ["^db:generate"],
+      "dependsOn": ["@repo/db#db:generate"],
       "cache": false,
       "persistent": true
     },
     "backend#dev": {
-      "dependsOn": ["^db:generate"],
+      "dependsOn": ["@repo/db#db:generate"],
       "with": ["price-ingestor#dev"],
       "cache": false,
       "persistent": true
     },
     "engine#dev": {
-      "dependsOn": ["^db:generate"],
+      "dependsOn": ["@repo/db#db:generate"],
       "with": ["price-ingestor#dev", "engine-worker#dev"],
       "cache": false,
       "persistent": true
     },
     "ws#dev": {
-      "dependsOn": ["^db:generate"],
+      "dependsOn": ["@repo/db#db:generate"],
       "with": ["price-ingestor#dev"],
       "cache": false,
       "persistent": true

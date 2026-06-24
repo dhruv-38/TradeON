@@ -5,6 +5,8 @@ export const REDIS_STREAMS = {
 
   ENGINE_DB_STREAM: "stream.engine.db",
 
+  ENGINE_DLQ_STREAM: "stream.engine.dead-letter",
+
   ENGINE_SNAPSHOT_STREAM_PREFIX: "stream.engine.snapshot",
 
   MARKET_EVENTS_STREAM: "market-events",

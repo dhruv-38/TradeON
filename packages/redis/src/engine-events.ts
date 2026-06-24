@@ -45,7 +45,12 @@ export type SerializedPosition = {
 
 export type EngineCommand =
   | { type: "order.loaded"; order: SerializedOrder }
-  | { type: "position.external.closed"; positionId: string }
+  | {
+      type: "position.close.requested";
+      userId: number;
+      positionId: string;
+      responseStream: string;
+    }
   | {
       type: "positions.live.requested";
       userId: number;
@@ -56,6 +61,10 @@ export type LivePositionState = {
   openPositions: SerializedPosition[];
   recentHistory: SerializedPosition[];
 };
+
+export type EngineCloseResponse =
+  | { success: true; position: SerializedPosition }
+  | { success: false; error: string };
 
 export type EngineDbEvent =
   | {
@@ -84,6 +93,7 @@ export type EngineDbEvent =
       positionId: string;
       userId: number;
       exitPrice: string;
+      realizedPnl: string;
       closedAt: string;
     }
   | {
@@ -107,6 +117,28 @@ export const publishEngineCommand = (command: EngineCommand) =>
 
 export const publishEngineDbEvent = (event: EngineDbEvent) =>
   addJsonEvent(REDIS_STREAMS.ENGINE_DB_STREAM, event);
+
+export const publishEngineTransition = async (
+  dbEvent: Exclude<EngineDbEvent, { type: "engine.snapshot.requested" }>,
+  userEvent: {
+    userId: number;
+    event: string;
+    payload: Record<string, string>;
+  },
+) => {
+  await redis
+    .multi()
+    .xAdd(REDIS_STREAMS.ENGINE_DB_STREAM, "*", {
+      event: dbEvent.type,
+      payload: JSON.stringify(dbEvent),
+    })
+    .xAdd(REDIS_STREAMS.USER_EVENTS_STREAM, "*", {
+      userId: String(userEvent.userId),
+      event: userEvent.event,
+      ...userEvent.payload,
+    })
+    .exec();
+};
 
 export const parseJsonEvent = <T>(payload: string | undefined): T => {
   if (!payload) {

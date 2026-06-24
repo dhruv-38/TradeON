@@ -1,16 +1,20 @@
 import { randomUUID } from "node:crypto";
 import {
   openPositions,
+  orders,
   recentPositionHistory,
   startLivePriceCache,
 } from "@repo/market";
+import { OrderStatus } from "@repo/db";
 import {
   parseJsonEvent,
+  handleStreamFailure,
   publishEngineDbEvent,
   redis,
   REDIS_GROUPS,
   REDIS_STREAMS,
   type EngineCommand,
+  type EngineCloseResponse,
   type EngineSnapshot,
   type LivePositionState,
 } from "@repo/redis";
@@ -21,7 +25,7 @@ import {
   serializePosition,
   upsertMemoryOrder,
 } from "./serialization.js";
-import { removeExternallyClosedPosition } from "./position.engine.js";
+import { closeMemoryPosition } from "./position.engine.js";
 
 const CONSUMER_NAME = "engine-1";
 
@@ -34,7 +38,8 @@ const requestSnapshot = async () => {
   });
 
   try {
-    while (true) {
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline) {
       const response = await redis.xRead([{ key: responseStream, id: "0" }], {
         COUNT: 1,
         BLOCK: 5000,
@@ -47,6 +52,8 @@ const requestSnapshot = async () => {
 
       console.log("Waiting for engine-worker snapshot...");
     }
+
+    throw new Error("Timed out waiting for engine snapshot");
   } finally {
     await redis.del(responseStream);
   }
@@ -91,7 +98,33 @@ const handleCommand = async (command: EngineCommand) => {
     return;
   }
 
-  await removeExternallyClosedPosition(command.positionId);
+  let response: EngineCloseResponse;
+  try {
+    const recentlyClosed = recentPositionHistory.find(
+      (position) =>
+        position.id === command.positionId &&
+        position.userId === command.userId,
+    );
+    const position =
+      recentlyClosed ??
+      (await closeMemoryPosition(
+        command.positionId,
+        "USER",
+        undefined,
+        command.userId,
+      ));
+    response = { success: true, position: serializePosition(position) };
+  } catch (error) {
+    response = {
+      success: false,
+      error: error instanceof Error ? error.message : "Position close failed",
+    };
+  }
+
+  await redis.xAdd(command.responseStream, "*", {
+    payload: JSON.stringify(response),
+  });
+  await redis.expire(command.responseStream, 30);
 };
 
 const startConsumer = async () => {
@@ -131,7 +164,14 @@ const startConsumer = async () => {
           );
         } catch (error) {
           console.error("Engine command failed:", error);
-          await new Promise((resolve) => setTimeout(resolve, 250));
+          await handleStreamFailure(
+            client,
+            REDIS_STREAMS.ENGINE_COMMANDS_STREAM,
+            REDIS_GROUPS.ENGINE_GROUP,
+            message.id,
+            message.message,
+            error,
+          );
         }
       }
     }
@@ -145,6 +185,12 @@ hydrateEngineMemory(snapshot);
 console.log(
   `Engine hydrated ${snapshot.orders.length} orders and ${openPositions.length} positions`,
 );
+
+for (const order of orders) {
+  if (order.status === OrderStatus.PENDING) {
+    await executeOrder(order.id);
+  }
+}
 
 void startConsumer();
 void startMarketConsumer();

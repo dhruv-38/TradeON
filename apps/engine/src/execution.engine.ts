@@ -6,7 +6,7 @@ import {
   orders,
   type Position,
 } from "@repo/market";
-import { publishEngineDbEvent, publishUserEvent } from "@repo/redis";
+import { publishEngineTransition } from "@repo/redis";
 import { serializeOrder, serializePosition } from "./serialization.js";
 
 const MAINTENANCE_MARGIN_RATE = 0.01;
@@ -16,24 +16,30 @@ const rejectOrder = async (
   order: (typeof orders)[number],
   reason: "SLIPPAGE" | "MARGIN_EXCEEDED",
 ) => {
-  await publishEngineDbEvent({
-    type: "order.rejected",
-    orderId: order.id,
-    userId: order.userId,
-    marginUsed: order.marginUsed.toString(),
-    reason,
-  });
   const previousStatus = order.status;
   const previousUpdatedAt = order.updatedAt;
   order.status = OrderStatus.REJECTED;
   order.updatedAt = new Date();
 
   try {
-    await publishUserEvent(order.userId, "order.rejected", {
-      orderId: String(order.id),
-      reason,
-      source: "engine",
-    });
+    await publishEngineTransition(
+      {
+        type: "order.rejected",
+        orderId: order.id,
+        userId: order.userId,
+        marginUsed: order.marginUsed.toString(),
+        reason,
+      },
+      {
+        userId: order.userId,
+        event: "order.rejected",
+        payload: {
+          orderId: String(order.id),
+          reason,
+          source: "engine",
+        },
+      },
+    );
   } catch (error) {
     order.status = previousStatus;
     order.updatedAt = previousUpdatedAt;
@@ -105,22 +111,28 @@ export const executeOrder = async (orderId: number) => {
     closedAt: null,
   };
 
-  await publishEngineDbEvent({
-    type: "position.opened",
-    order: serializeOrder(filledOrder),
-    position: serializePosition(position),
-  });
   const previousOrder = { ...order };
   Object.assign(order, filledOrder);
   position.order = order;
   openPositions.push(position);
 
   try {
-    await publishUserEvent(order.userId, "position.opened", {
-      positionId: position.id,
-      orderId: String(order.id),
-      source: "engine",
-    });
+    await publishEngineTransition(
+      {
+        type: "position.opened",
+        order: serializeOrder(order),
+        position: serializePosition(position),
+      },
+      {
+        userId: order.userId,
+        event: "position.opened",
+        payload: {
+          positionId: position.id,
+          orderId: String(order.id),
+          source: "engine",
+        },
+      },
+    );
   } catch (error) {
     const positionIndex = openPositions.findIndex(
       (candidate) => candidate.id === position.id,

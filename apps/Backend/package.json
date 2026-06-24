@@ -18,8 +18,7 @@
     "@repo/config": "workspace:*",
     "@repo/redis": "workspace:*",
     "@repo/market": "workspace:*",
-    "@repo/timescaledb": "workspace:*",
-    "@repo/trading": "workspace:*"
+    "@repo/timescaledb": "workspace:*"
   },
   "peerDependencies": {
     "typescript": "^5"

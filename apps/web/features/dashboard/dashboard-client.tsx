@@ -202,6 +202,7 @@ export function DashboardClient() {
 
     const socket = new WebSocket(WEBSOCKET_URL);
     let liveRefreshTimer: number | undefined;
+    let accountRefreshTimer: number | undefined;
 
     const scheduleLivePositionRefresh = () => {
       if (liveRefreshTimer !== undefined) {
@@ -222,10 +223,34 @@ export function DashboardClient() {
       }, 50);
     };
 
+    const schedulePersistedAccountRefresh = () => {
+      if (accountRefreshTimer !== undefined) {
+        window.clearTimeout(accountRefreshTimer);
+      }
+
+      accountRefreshTimer = window.setTimeout(() => {
+        Promise.all([
+          getWallet(),
+          getOrders(),
+          getPositionHistory(),
+          getLedger(),
+        ])
+          .then(([nextWallet, nextOrders, nextHistory, nextLedger]) => {
+            setWallet(nextWallet);
+            setOrders(nextOrders);
+            setPositionHistory((current) =>
+              mergePositionHistory(current, nextHistory),
+            );
+            setLedger(nextLedger);
+          })
+          .catch((error) => {
+            setConnectionError(getApiErrorMessage(error));
+          });
+      }, 500);
+    };
+
     socket.addEventListener("open", () => {
       setConnectionError(null);
-      socket.send(JSON.stringify({ type: "subscribe", userId: currentUserId }));
-      socket.send(JSON.stringify({ type: "positions", userId: currentUserId }));
     });
 
     socket.addEventListener("message", (event) => {
@@ -270,6 +295,11 @@ export function DashboardClient() {
         message.event === "position.liquidated"
       ) {
         scheduleLivePositionRefresh();
+        return;
+      }
+
+      if (message.event === "account.updated") {
+        schedulePersistedAccountRefresh();
       }
     });
 
@@ -280,6 +310,9 @@ export function DashboardClient() {
     return () => {
       if (liveRefreshTimer !== undefined) {
         window.clearTimeout(liveRefreshTimer);
+      }
+      if (accountRefreshTimer !== undefined) {
+        window.clearTimeout(accountRefreshTimer);
       }
       socket.close();
     };

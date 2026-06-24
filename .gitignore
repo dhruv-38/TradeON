@@ -38,6 +38,8 @@ yarn-error.log*
 .codex-*/
 .codex-*.log
 dashboard-preview.png
+.agents/
+.tmp/
 
 # Misc
 .DS_Store

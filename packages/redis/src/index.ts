@@ -4,3 +4,4 @@ export * from "./price.keys.js";
 export * from "./user-events.js";
 export * from "./channels.js";
 export * from "./engine-events.js";
+export * from "./stream-failure.js";

@@ -1,12 +1,14 @@
 import { openPositions } from "@repo/market";
 import { closeMemoryPosition } from "./position.engine.js";
+import { getExecutableExitPrice } from "./pricing.js";
 
-export const checkTpSl = async (symbol: string, currentPrice: number) => {
+export const checkTpSl = async (symbol: string, bid: number, ask: number) => {
   const positions = openPositions.filter(
     (position) => position.symbol === symbol,
   );
 
   for (const position of positions) {
+    const currentPrice = getExecutableExitPrice(position.side, bid, ask);
     const takeProfit = position.order.takeProfit;
     const stopLoss = position.order.stopLoss;
 
