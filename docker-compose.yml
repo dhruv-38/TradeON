@@ -154,6 +154,8 @@ services:
       BACKPACK_WS_URL: wss://ws.backpack.exchange
       TIMESCALE_DATABASE_URL: postgresql://postgres:postgres@timescaledb:5432/tradeon_timescale
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_started
       backend:
