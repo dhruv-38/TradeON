@@ -1,0 +1,29 @@
+name: Checkout Code
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy on VM
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          script: |
+            if [ ! -d "$HOME/TradeON/.git" ]; then
+              git clone https://github.com/dhruv-38/TradeON.git "$HOME/TradeON"
+            fi
+
+            cd "$HOME/TradeON"
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
+            docker image prune -f
