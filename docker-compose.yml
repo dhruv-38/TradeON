@@ -163,11 +163,11 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://be.tradeon.100xdc.com/api/v1
+        NEXT_PUBLIC_WS_URL: wss://ws.tradeon.100xdc.com
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: https://be.tradeon.100xdc.com/api/v1
-      NEXT_PUBLIC_WS_URL: wss://ws.tradeon.100xdc.com
     depends_on:
       backend:
         condition: service_healthy
