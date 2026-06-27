@@ -11,6 +11,12 @@ RUN bun install
 
 COPY apps/ws .
 
+WORKDIR /app/packages/db
+
+RUN bun run db:generate
+
+WORKDIR /app/apps/ws
+
 EXPOSE 8080
 
 CMD ["bun", "run", "src/index.ts"]
