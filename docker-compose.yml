@@ -7,6 +7,8 @@ services:
       POSTGRES_DB: TradeON
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d TradeON"]
       interval: 5s
@@ -17,7 +19,8 @@ services:
     image: redis:8-alpine
     ports:
       - "6379:6379"
-  
+    volumes:
+      - redis_data:/data
   timescaledb:
     image: timescale/timescaledb:latest-pg17
     environment:
@@ -26,6 +29,8 @@ services:
       POSTGRES_DB: tradeon_timescale
     ports:
       - "5433:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d tradeon_timescale"]
       interval: 5s
@@ -163,3 +168,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+  
+volumes:
+  postgres_data:
+  timescaledb_data:
+  redis_data:

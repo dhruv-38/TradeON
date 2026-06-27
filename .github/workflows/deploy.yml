@@ -25,5 +25,13 @@ jobs:
             cd "$HOME/TradeON"
             git pull origin main
             docker compose down
+            docker compose pull postgres redis timescaledb
+            docker compose build backend
+            docker compose build engine
+            docker compose build engine-worker
+            docker compose build price-ingestor
+            docker compose build batch-uploader
+            docker compose build ws
+            docker compose build web
             docker compose up -d --build
             docker image prune -f
