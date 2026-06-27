@@ -5,6 +5,13 @@ import { loginAuthService, signupAuthService } from "./auth.service.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { ValidationError } from "../../lib/errors/ValidationError.js";
 
+const cookieOptions = {
+  maxAge: 24 * 60 * 60 * 1000,
+  httpOnly: true,
+  sameSite: "strict" as const,
+  secure: config.NODE_ENV !== "development",
+  domain: config.COOKIE_DOMAIN,
+};
 
 export const signupController = asyncHandler(async (req: Request, res: Response) => {
   const result = RegisterUserSchema.safeParse(req.body);
@@ -13,12 +20,7 @@ export const signupController = asyncHandler(async (req: Request, res: Response)
   }
   const { token, newUser,wallet } = await signupAuthService(result.data);
 
-  res.cookie("jwt", token, {
-    maxAge: 24 * 60 * 60 * 1000, // MS
-    httpOnly: true, // prevent XSS attacks: cross-site scripting
-    sameSite: "strict", // CSRF attacks
-    secure: config.NODE_ENV === "development" ? false : true,
-  });
+  res.cookie("jwt", token, cookieOptions);
   res.status(201).json({
     message: "User created successfully",
     user: {
@@ -39,12 +41,7 @@ export const loginController = asyncHandler(async (req: Request, res: Response) 
 
   const { token, existingUser } = await loginAuthService(result.data);
 
-  res.cookie("jwt", token, {
-    maxAge: 24 * 60 * 60 * 1000,
-    httpOnly: true,
-    sameSite: "strict",
-    secure: config.NODE_ENV !== "development",
-  })
+  res.cookie("jwt", token, cookieOptions)
 
   return res.status(200).json({
     message: "Login successful",
@@ -65,9 +62,10 @@ export const getCurrentUserController = asyncHandler(async (req: Request, res: R
 
 export const logoutController = asyncHandler(async (_req: Request, res: Response) => {
   res.clearCookie("jwt", {
-    httpOnly: true,
-    sameSite: "strict",
-    secure: config.NODE_ENV !== "development",
+    httpOnly: cookieOptions.httpOnly,
+    sameSite: cookieOptions.sameSite,
+    secure: cookieOptions.secure,
+    domain: cookieOptions.domain,
   });
 
   return res.json({

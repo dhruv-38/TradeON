@@ -46,6 +46,7 @@ services:
     environment:
       NODE_ENV: production
       JWT_SECRET: thisissecret
+      COOKIE_DOMAIN: tradeon.100xdc.com
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://postgres:123456@postgres:5432/TradeON?schema=public
       BACKPACK_WS_URL: wss://ws.backpack.exchange
@@ -73,6 +74,7 @@ services:
     environment:
       NODE_ENV: production
       JWT_SECRET: thisissecret
+      COOKIE_DOMAIN: tradeon.100xdc.com
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://postgres:123456@postgres:5432/TradeON?schema=public
       BACKPACK_WS_URL: wss://ws.backpack.exchange
@@ -92,6 +94,7 @@ services:
     environment:
       NODE_ENV: production
       JWT_SECRET: thisissecret
+      COOKIE_DOMAIN: tradeon.100xdc.com
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://postgres:123456@postgres:5432/TradeON?schema=public
       BACKPACK_WS_URL: wss://ws.backpack.exchange
@@ -111,6 +114,7 @@ services:
     environment:
       NODE_ENV: production
       JWT_SECRET: thisissecret
+      COOKIE_DOMAIN: tradeon.100xdc.com
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://postgres:123456@postgres:5432/TradeON?schema=public
       BACKPACK_WS_URL: wss://ws.backpack.exchange
@@ -128,6 +132,7 @@ services:
     environment:
       NODE_ENV: production
       JWT_SECRET: thisissecret
+      COOKIE_DOMAIN: tradeon.100xdc.com
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://postgres:123456@postgres:5432/TradeON?schema=public
       BACKPACK_WS_URL: wss://ws.backpack.exchange
@@ -149,6 +154,7 @@ services:
     environment:
       NODE_ENV: production
       JWT_SECRET: thisissecret
+      COOKIE_DOMAIN: tradeon.100xdc.com
       REDIS_URL: redis://redis:6379
       DATABASE_URL: postgresql://postgres:123456@postgres:5432/TradeON?schema=public
       BACKPACK_WS_URL: wss://ws.backpack.exchange

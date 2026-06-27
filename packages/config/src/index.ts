@@ -10,6 +10,8 @@ const EnvSchema = z.object({
 
   JWT_SECRET: z.string(),
 
+  COOKIE_DOMAIN: z.string().optional(),
+
   REDIS_URL: z.string(),
 
   NODE_ENV: z.string(),
