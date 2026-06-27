@@ -18,4 +18,4 @@ WORKDIR /app/apps/Backend/
 
 EXPOSE 8000
 
-CMD ["bun", "run", "src/index.ts"]
+CMD ["sh", "-c", "cd /app/packages/db && bun run db:deploy && cd /app/apps/Backend && bun run src/index.ts"]
