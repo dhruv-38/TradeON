@@ -188,27 +188,6 @@ Compose service URLs:
 
 The current `docker-compose.yml` builds the web app with production API and WebSocket URLs. For a fully local Docker run, change the `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` build args to the localhost values shown in the environment example above.
 
-## Production Deployment
-
-The current deployment is designed around separate production subdomains:
-
-| Service | Production URL |
-| --- | --- |
-| Frontend | `https://tradeon.100xdc.com` |
-| Backend | `https://be.tradeon.100xdc.com` |
-| WebSocket | `wss://ws.tradeon.100xdc.com` |
-
-Important production variables:
-
-```env
-NODE_ENV=production
-COOKIE_DOMAIN=tradeon.100xdc.com
-NEXT_PUBLIC_API_URL=https://be.tradeon.100xdc.com/api/v1
-NEXT_PUBLIC_WS_URL=wss://ws.tradeon.100xdc.com
-```
-
-The shared cookie domain is required because the frontend, backend, and WebSocket services run on different subdomains. The backend issues the HTTP-only `jwt` cookie, and the WebSocket server uses the same cookie to authenticate live connections.
-
 ## Technology Stack
 
 - **Frontend**: Next.js, React, TypeScript, Tailwind CSS, lightweight-charts, Axios, Zustand
