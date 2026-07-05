@@ -1,5 +1,6 @@
 import { redis } from "./client.js";
 import { REDIS_STREAMS } from "./streams.js";
+import { xAddWithMaxLen } from "./capped-stream.js";
 
 export type SerializedOrder = {
   id: number;
@@ -107,7 +108,7 @@ export type EngineSnapshot = {
 };
 
 const addJsonEvent = (stream: string, event: { type: string }) =>
-  redis.xAdd(stream, "*", {
+  xAddWithMaxLen(redis, stream, "*", {
     event: event.type,
     payload: JSON.stringify(event),
   });
@@ -126,18 +127,17 @@ export const publishEngineTransition = async (
     payload: Record<string, string>;
   },
 ) => {
-  await redis
-    .multi()
-    .xAdd(REDIS_STREAMS.ENGINE_DB_STREAM, "*", {
+  await Promise.all([
+    xAddWithMaxLen(redis, REDIS_STREAMS.ENGINE_DB_STREAM, "*", {
       event: dbEvent.type,
       payload: JSON.stringify(dbEvent),
-    })
-    .xAdd(REDIS_STREAMS.USER_EVENTS_STREAM, "*", {
+    }),
+    xAddWithMaxLen(redis, REDIS_STREAMS.USER_EVENTS_STREAM, "*", {
       userId: String(userEvent.userId),
       event: userEvent.event,
       ...userEvent.payload,
-    })
-    .exec();
+    }),
+  ]);
 };
 
 export const parseJsonEvent = <T>(payload: string | undefined): T => {

@@ -1,6 +1,11 @@
 import WebSocket from "ws";
 import { config } from "@repo/config";
-import { redis, REDIS_CHANNELS, REDIS_STREAMS } from "@repo/redis";
+import {
+  redis,
+  REDIS_CHANNELS,
+  REDIS_STREAMS,
+  xAddWithMaxLen,
+} from "@repo/redis";
 
 const RECONNECT_DELAY_MS = 2_000;
 const STALE_CONNECTION_MS = 20_000;
@@ -72,13 +77,13 @@ function connect() {
         case "BTC_USDC":
           await redis.publish(REDIS_CHANNELS.BTC_USDC, JSON.stringify(payload));
           // await redis.set(REDIS_KEYS.BTC_USDC, JSON.stringify(payload));
-          await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
+          await xAddWithMaxLen(redis, REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
             bid: String(payload.bid),
             ask: String(payload.ask),
           });
-          await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
+          await xAddWithMaxLen(redis, REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,
 
             bid: String(payload.bid),
@@ -92,13 +97,13 @@ function connect() {
         case "ETH_USDC":
           await redis.publish(REDIS_CHANNELS.ETH_USDC, JSON.stringify(payload));
           // await redis.set(REDIS_KEYS.ETH_USDC, JSON.stringify(payload));
-          await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
+          await xAddWithMaxLen(redis, REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
             bid: String(payload.bid),
             ask: String(payload.ask),
           });
-          await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
+          await xAddWithMaxLen(redis, REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,
 
             bid: String(payload.bid),
@@ -112,13 +117,13 @@ function connect() {
         case "SOL_USDC":
           await redis.publish(REDIS_CHANNELS.SOL_USDC, JSON.stringify(payload));
           // await redis.set(REDIS_KEYS.SOL_USDC, JSON.stringify(payload));
-          await redis.xAdd(REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
+          await xAddWithMaxLen(redis, REDIS_STREAMS.MARKET_EVENTS_STREAM, "*", {
             event: "market.price.updated",
             symbol: data.s,
             bid: String(payload.bid),
             ask: String(payload.ask),
           });
-          await redis.xAdd(REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
+          await xAddWithMaxLen(redis, REDIS_STREAMS.MARKET_TICKS_STREAM, "*", {
             symbol: data.s,
 
             bid: String(payload.bid),

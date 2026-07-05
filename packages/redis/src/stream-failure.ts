@@ -1,5 +1,6 @@
 import type { RedisClientType } from "redis";
 import { REDIS_STREAMS } from "./streams.js";
+import { xAddWithMaxLen } from "./capped-stream.js";
 
 const MAX_DELIVERIES = 3;
 
@@ -25,7 +26,7 @@ export async function handleStreamFailure(
     return;
   }
 
-  await client.xAdd(REDIS_STREAMS.ENGINE_DLQ_STREAM, "*", {
+  await xAddWithMaxLen(client, REDIS_STREAMS.ENGINE_DLQ_STREAM, "*", {
     sourceStream: stream,
     sourceGroup: group,
     sourceId: messageId,

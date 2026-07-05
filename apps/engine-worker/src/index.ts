@@ -8,6 +8,7 @@ import {
   REDIS_GROUPS,
   REDIS_STREAMS,
   type EngineDbEvent,
+  xAddWithMaxLen,
 } from "@repo/redis";
 import { persistEngineEvent } from "./persistence.js";
 import { serializeOrder } from "./serialization.js";
@@ -122,7 +123,7 @@ const startOutboxPublisher = async () => {
             throw new Error("Order outbox payload is invalid");
           }
 
-          await redis.xAdd(REDIS_STREAMS.ORDER_STREAM, "*", {
+          await xAddWithMaxLen(redis, REDIS_STREAMS.ORDER_STREAM, "*", {
             event: event.type,
             orderId: String(orderId),
             userId: String(userId),
