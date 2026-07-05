@@ -1,4 +1,4 @@
-import { prisma } from "@repo/db";
+import { Prisma, prisma } from "@repo/db";
 
 export const userExist = async (email: string) => {
   return await prisma.user.findUnique({
@@ -25,6 +25,7 @@ export const createUser = async (
       data: {
         userId: newUser.id,
         asset: "USDC",
+        availableBalance: new Prisma.Decimal(100000),
       },
     });
 

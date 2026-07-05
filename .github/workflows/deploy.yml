@@ -43,4 +43,5 @@ jobs:
             docker compose build ws
             docker compose build web
             docker compose up -d --build
-            docker image prune -f
+            docker image prune -af
+            docker container prune -af
