@@ -5,12 +5,15 @@ import { loginAuthService, signupAuthService } from "./auth.service.js";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { ValidationError } from "../../lib/errors/ValidationError.js";
 
+const cookieDomain =
+  config.NODE_ENV === "development" ? undefined : config.COOKIE_DOMAIN;
+
 const cookieOptions = {
   maxAge: 24 * 60 * 60 * 1000,
   httpOnly: true,
   sameSite: "strict" as const,
   secure: config.NODE_ENV !== "development",
-  domain: config.COOKIE_DOMAIN,
+  ...(cookieDomain ? { domain: cookieDomain } : {}),
 };
 
 export const signupController = asyncHandler(async (req: Request, res: Response) => {

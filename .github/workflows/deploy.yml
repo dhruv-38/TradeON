@@ -24,6 +24,15 @@ jobs:
 
             cd "$HOME/TradeON"
             git pull origin main
+
+            cat > .env <<EOF
+            NODE_ENV=${{ secrets.NODE_ENV }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            COOKIE_DOMAIN=${{ secrets.COOKIE_DOMAIN }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_WS_URL=${{ secrets.NEXT_PUBLIC_WS_URL }}
+            EOF
+
             docker compose down
             docker compose pull postgres redis timescaledb
             docker compose build backend
