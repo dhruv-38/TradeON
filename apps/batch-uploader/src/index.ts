@@ -33,28 +33,53 @@ const buffer: {
     ask: number;
 }[] = [];
 
-async function flush() {
+let currentFlush: Promise<void> | null = null;
+
+async function flushBatch() {
     if (buffer.length === 0) {
         return;
     }
 
-    const values = buffer.map((tick) => `('${tick.time.toISOString()}', '${tick.symbol}', ${tick.bid},${tick.ask})`).join(",");
+    const batch = buffer.slice();
+    const idsToAck = pendingIds.slice(0, batch.length);
 
-    await timescale.query(`INSERT INTO ticks (time,symbol,bid,ask) VALUES ${values}`);
+    const values = batch.map((_, index) => {
+        const offset = index * 4;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`;
+    }).join(",");
+
+    const params = batch.flatMap((tick) => [tick.time, tick.symbol, tick.bid, tick.ask]);
+
+    await timescale.query(`INSERT INTO ticks (time,symbol,bid,ask) VALUES ${values}`, params);
 
     await redis.xAck(
         REDIS_STREAMS.MARKET_TICKS_STREAM,
         REDIS_GROUPS.BATCH_GROUP,
-        pendingIds
+        idsToAck
     );
 
-    console.log(`Inserted ${buffer.length} ticks`);
+    buffer.splice(0, batch.length);
+    pendingIds.splice(0, idsToAck.length);
 
-    buffer.length = 0;
+    console.log(`Inserted ${batch.length} ticks`);
+}
+
+async function flush() {
+    if (!currentFlush) {
+        currentFlush = flushBatch().finally(() => {
+            currentFlush = null;
+        });
+    }
+
+    return currentFlush;
 }
 
 
-setInterval(flush, FLUSH_INTERVAL);
+setInterval(() => {
+    void flush().catch((error) => {
+        console.error("Failed to flush ticks", error);
+    });
+}, FLUSH_INTERVAL);
 
 
 async function startConsumer() {
