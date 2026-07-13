@@ -1,11 +1,11 @@
 import { timescale } from "@repo/timescaledb";
 
 const intervals = {
-  "1m": { sql: "1 minute", milliseconds: 60_000 },
-  "5m": { sql: "5 minutes", milliseconds: 5 * 60_000 },
-  "1h": { sql: "1 hour", milliseconds: 60 * 60_000 },
-  "4h": { sql: "4 hours", milliseconds: 4 * 60 * 60_000 },
-  "1d": { sql: "1 day", milliseconds: 24 * 60 * 60_000 },
+  "1m": { sql: "1 minute", sourceMinutes: 1 },
+  "5m": { sql: "5 minutes", sourceMinutes: 5 },
+  "1h": { sql: "1 hour", sourceMinutes: 60 },
+  "4h": { sql: "4 hours", sourceMinutes: 4 * 60 },
+  "1d": { sql: "1 day", sourceMinutes: 24 * 60 },
 } as const;
 
 type CandleRow = {
@@ -30,12 +30,18 @@ export const getCandles = async (
 
   const pageLimit = Math.min(Math.max(limit, 1), 500);
   const beforeDate = before ? new Date(before) : new Date();
-  const windowStart = new Date(
-    beforeDate.getTime() - intervalConfig.milliseconds * (pageLimit + 1),
-  );
+  const sourceLimit = (pageLimit + 1) * intervalConfig.sourceMinutes;
 
   const result = await timescale.query<CandleRow>(
-    `SELECT *
+    `WITH source_candles AS (
+       SELECT bucket, symbol, open, high, low, close
+       FROM candles_1m
+       WHERE symbol = $1
+         AND bucket < $4::timestamptz
+       ORDER BY bucket DESC
+       LIMIT $5
+     )
+     SELECT *
      FROM (
        SELECT
          time_bucket($3::interval, bucket) AS bucket,
@@ -44,10 +50,7 @@ export const getCandles = async (
          max(high) AS high,
          min(low) AS low,
          last(close, bucket) AS close
-       FROM candles_1m
-       WHERE symbol = $1
-         AND bucket >= $4::timestamptz
-         AND bucket < $5::timestamptz
+       FROM source_candles
        GROUP BY time_bucket($3::interval, bucket), symbol
        ORDER BY bucket DESC
        LIMIT $2
@@ -57,8 +60,8 @@ export const getCandles = async (
       symbol,
       pageLimit + 1,
       intervalConfig.sql,
-      windowStart.toISOString(),
       beforeDate.toISOString(),
+      sourceLimit,
     ],
   );
 

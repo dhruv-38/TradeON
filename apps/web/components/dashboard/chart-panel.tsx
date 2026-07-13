@@ -188,13 +188,14 @@ export function ChartPanel({
     chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
     chartContainer.addEventListener("wheel", markUserNavigation, {
       passive: true,
+      capture: true,
     });
-    chartContainer.addEventListener("pointerdown", markUserNavigation);
+    chartContainer.addEventListener("pointerdown", markUserNavigation, true);
 
     return () => {
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
-      chartContainer.removeEventListener("wheel", markUserNavigation);
-      chartContainer.removeEventListener("pointerdown", markUserNavigation);
+      chartContainer.removeEventListener("wheel", markUserNavigation, true);
+      chartContainer.removeEventListener("pointerdown", markUserNavigation, true);
       chartRef.current = null;
       candleSeriesRef.current = null;
       liveCandleRef.current = null;

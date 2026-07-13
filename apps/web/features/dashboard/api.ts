@@ -25,7 +25,13 @@ type CandlePageResponse = DataResponse<Candle[]> & {
   };
 };
 
-const CANDLE_PAGE_SIZE = 120;
+const CANDLE_PAGE_SIZES: Record<Timeframe, number> = {
+  "1m": 120,
+  "5m": 120,
+  "1h": 72,
+  "4h": 30,
+  "1d": 5,
+};
 
 export async function getCurrentUser() {
   const response = await api.get<{ success: boolean; user: DashboardUser }>(
@@ -62,7 +68,7 @@ export async function getCandles(
     params: {
       symbol,
       interval,
-      limit: CANDLE_PAGE_SIZE,
+      limit: CANDLE_PAGE_SIZES[interval],
       before: options.before,
     },
     signal: options.signal,
