@@ -90,7 +90,6 @@ export function DashboardClient() {
   const [loadedTimeframe, setLoadedTimeframe] = useState<Timeframe>("1h");
   const [isAccountLoading, setIsAccountLoading] = useState(true);
   const [isChartLoading, setIsChartLoading] = useState(true);
-  const [isOlderCandlesLoading, setIsOlderCandlesLoading] = useState(false);
   const [hasMoreCandles, setHasMoreCandles] = useState(false);
   const [candleCursor, setCandleCursor] = useState<string | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
@@ -184,7 +183,6 @@ export function DashboardClient() {
     olderCandlesAbortRef.current?.abort();
     isOlderCandlesLoadingRef.current = false;
     setIsChartLoading(true);
-    setIsOlderCandlesLoading(false);
     setHasMoreCandles(false);
     setCandleCursor(null);
 
@@ -233,7 +231,6 @@ export function DashboardClient() {
     const controller = new AbortController();
     olderCandlesAbortRef.current = controller;
     isOlderCandlesLoadingRef.current = true;
-    setIsOlderCandlesLoading(true);
 
     try {
       const page = await getCandles(selectedSymbol, timeframe, {
@@ -257,10 +254,33 @@ export function DashboardClient() {
       if (requestId === chartRequestIdRef.current) {
         olderCandlesAbortRef.current = null;
         isOlderCandlesLoadingRef.current = false;
-        setIsOlderCandlesLoading(false);
       }
     }
   }, [candleCursor, hasMoreCandles, isChartLoading, selectedSymbol, timeframe]);
+
+  const handleSymbolChange = useCallback(
+    (nextSymbol: SymbolCode) => {
+      if (nextSymbol === selectedSymbol) {
+        return;
+      }
+
+      setIsChartLoading(true);
+      setSelectedSymbol(nextSymbol);
+    },
+    [selectedSymbol],
+  );
+
+  const handleTimeframeChange = useCallback(
+    (nextTimeframe: Timeframe) => {
+      if (nextTimeframe === timeframe) {
+        return;
+      }
+
+      setIsChartLoading(true);
+      setTimeframe(nextTimeframe);
+    },
+    [timeframe],
+  );
 
   useEffect(() => {
     if (currentUserId === null) {
@@ -624,7 +644,7 @@ export function DashboardClient() {
                 <button
                   key={option.symbol}
                   type="button"
-                  onClick={() => setSelectedSymbol(option.symbol)}
+                  onClick={() => handleSymbolChange(option.symbol)}
                   className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-left transition ${
                     isActive
                       ? "border-[#6a89a7] bg-[#edf4fa] shadow-[inset_0_0_0_1px_rgba(136,189,242,0.3)]"
@@ -697,8 +717,7 @@ export function DashboardClient() {
             timeframe={timeframe}
             loadedTimeframe={loadedTimeframe}
             isLoading={isChartLoading}
-            isLoadingMore={isOlderCandlesLoading}
-            onTimeframeChange={setTimeframe}
+            onTimeframeChange={handleTimeframeChange}
             onLoadMore={loadOlderCandles}
           />
           <ActivityPanel
