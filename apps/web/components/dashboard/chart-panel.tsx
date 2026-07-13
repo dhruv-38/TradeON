@@ -47,7 +47,7 @@ export function ChartPanel({
     useState<CandlestickData<UTCTimestamp> | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) {
+    if (isLoading || !containerRef.current) {
       return;
     }
 
@@ -171,7 +171,7 @@ export function ChartPanel({
       liveCandleRef.current = null;
       chart.remove();
     };
-  }, [candles]);
+  }, [candles, isLoading]);
 
   useEffect(() => {
     const candleSeries = candleSeriesRef.current;
@@ -267,17 +267,28 @@ export function ChartPanel({
       </div>
 
       <div className="relative min-h-0 flex-1 bg-white">
-        <div ref={containerRef} className="absolute inset-0 bg-white" />
         {isLoading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/75 text-xs font-semibold text-[#718596]">
+          <div
+            className="absolute inset-0 flex items-center justify-center gap-2 bg-white text-xs font-semibold text-[#718596]"
+            role="status"
+            aria-live="polite"
+          >
+            <span
+              className="h-4 w-4 animate-spin rounded-full border-2 border-[#c9d8e5] border-t-[#19a974]"
+              aria-hidden="true"
+            />
             Loading market candles...
           </div>
-        ) : null}
-        {!isLoading && candles.length === 0 ? (
-          <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-[#718596]">
-            No candle data is available yet.
-          </div>
-        ) : null}
+        ) : (
+          <>
+            <div ref={containerRef} className="absolute inset-0 bg-white" />
+            {candles.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-[#718596]">
+                No candle data is available yet.
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
     </section>
   );

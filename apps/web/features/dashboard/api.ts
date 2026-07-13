@@ -43,9 +43,14 @@ export async function depositFunds(amount: number) {
   return response.data.wallet;
 }
 
-export async function getCandles(symbol: SymbolCode, interval: Timeframe) {
+export async function getCandles(
+  symbol: SymbolCode,
+  interval: Timeframe,
+  signal?: AbortSignal,
+) {
   const response = await api.get<DataResponse<Candle[]>>("/market/candles", {
     params: { symbol, interval, limit: 240 },
+    signal,
   });
   return response.data.data;
 }

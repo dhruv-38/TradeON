@@ -65,6 +65,7 @@ const SYMBOL_OPTIONS: Array<{
 export function DashboardClient() {
   const router = useRouter();
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const chartRequestIdRef = useRef(0);
   const setUser = useAuthStore((state) => state.setUser);
   const clearUser = useAuthStore((state) => state.clearUser);
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
@@ -167,31 +168,35 @@ export function DashboardClient() {
   }, [clearUser, router, setUser]);
 
   useEffect(() => {
-    let isActive = true;
+    const controller = new AbortController();
+    const requestId = ++chartRequestIdRef.current;
     setIsChartLoading(true);
 
-    getCandles(selectedSymbol, timeframe)
+    getCandles(selectedSymbol, timeframe, controller.signal)
       .then((data) => {
-        if (isActive) {
+        if (requestId === chartRequestIdRef.current) {
           setCandles(data);
           setLoadedTimeframe(timeframe);
           setConnectionError(null);
         }
       })
       .catch((error) => {
-        if (isActive) {
+        if (
+          requestId === chartRequestIdRef.current &&
+          !controller.signal.aborted
+        ) {
           setConnectionError(getApiErrorMessage(error));
           setCandles([]);
         }
       })
       .finally(() => {
-        if (isActive) {
+        if (requestId === chartRequestIdRef.current) {
           setIsChartLoading(false);
         }
       });
 
     return () => {
-      isActive = false;
+      controller.abort();
     };
   }, [selectedSymbol, timeframe]);
 
