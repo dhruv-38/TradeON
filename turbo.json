@@ -47,6 +47,9 @@
     },
     "timescale:schema": {
       "cache": false
+    },
+    "timescale:backfill": {
+      "cache": false
     }
   }
 }

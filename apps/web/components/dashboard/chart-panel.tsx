@@ -9,6 +9,7 @@ import {
   createChart,
   type CandlestickData,
   type ISeriesApi,
+  type LogicalRange,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -27,7 +28,9 @@ type ChartPanelProps = {
   timeframe: Timeframe;
   loadedTimeframe: Timeframe;
   isLoading: boolean;
+  isLoadingMore: boolean;
   onTimeframeChange: (timeframe: Timeframe) => void;
+  onLoadMore: () => void;
 };
 
 export function ChartPanel({
@@ -37,17 +40,32 @@ export function ChartPanel({
   timeframe,
   loadedTimeframe,
   isLoading,
+  isLoadingMore,
   onTimeframeChange,
+  onLoadMore,
 }: ChartPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const liveCandleRef = useRef<CandlestickData<UTCTimestamp> | null>(null);
   const lastTickTimestampRef = useRef(0);
+  const visibleRangeRef = useRef<LogicalRange | null>(null);
+  const previousCandleCountRef = useRef(0);
+  const onLoadMoreRef = useRef(onLoadMore);
   const [liveCandle, setLiveCandle] =
     useState<CandlestickData<UTCTimestamp> | null>(null);
 
   useEffect(() => {
-    if (isLoading || !containerRef.current) {
+    onLoadMoreRef.current = onLoadMore;
+  }, [onLoadMore]);
+
+  useEffect(() => {
+    if (isLoading) {
+      previousCandleCountRef.current = 0;
+      visibleRangeRef.current = null;
+      return;
+    }
+
+    if (!containerRef.current) {
       return;
     }
 
@@ -162,11 +180,38 @@ export function ChartPanel({
     lastTickTimestampRef.current = 0;
     setLiveCandle(candleData.at(-1) ?? null);
 
-    if (candleData.length > 0) {
+    const previousCandleCount = previousCandleCountRef.current;
+    const addedCandleCount = candleData.length - previousCandleCount;
+    const previousVisibleRange = visibleRangeRef.current;
+
+    if (
+      previousCandleCount > 0 &&
+      addedCandleCount > 0 &&
+      previousVisibleRange
+    ) {
+      const shiftedRange = {
+        from: previousVisibleRange.from + addedCandleCount,
+        to: previousVisibleRange.to + addedCandleCount,
+      } as LogicalRange;
+      chart.timeScale().setVisibleLogicalRange(shiftedRange);
+      visibleRangeRef.current = shiftedRange;
+    } else if (candleData.length > 0) {
       chart.timeScale().fitContent();
     }
 
+    previousCandleCountRef.current = candleData.length;
+
+    const handleVisibleRangeChange = (range: LogicalRange | null) => {
+      visibleRangeRef.current = range;
+      if (range && range.from <= 20) {
+        void onLoadMoreRef.current();
+      }
+    };
+
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
+
     return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
       candleSeriesRef.current = null;
       liveCandleRef.current = null;
       chart.remove();
@@ -282,6 +327,19 @@ export function ChartPanel({
         ) : (
           <>
             <div ref={containerRef} className="absolute inset-0 bg-white" />
+            {isLoadingMore ? (
+              <div
+                className="absolute left-3 top-3 z-10 flex items-center gap-2 border border-[#d8e3eb] bg-white px-2.5 py-2 text-[11px] font-semibold text-[#718596] shadow-sm"
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#c9d8e5] border-t-[#19a974]"
+                  aria-hidden="true"
+                />
+                Loading older candles...
+              </div>
+            ) : null}
             {candles.length === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-[#718596]">
                 No candle data is available yet.

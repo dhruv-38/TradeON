@@ -10,7 +10,8 @@
     "@types/pg": "^8.20.0"
   },
   "scripts": {
-    "timescale:schema": "bun run src/run-schema.ts"
+    "timescale:schema": "bun run src/run-schema.ts",
+    "timescale:backfill": "bun run src/run-backfill.ts"
   },
   "exports": {
     ".": "./src/index.ts"

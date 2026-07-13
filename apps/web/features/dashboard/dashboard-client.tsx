@@ -3,7 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { ActivityPanel } from "../../components/dashboard/activity-panel";
 import { ChartPanel } from "../../components/dashboard/chart-panel";
 import { OrderTicket } from "../../components/dashboard/order-ticket";
@@ -66,6 +72,8 @@ export function DashboardClient() {
   const router = useRouter();
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const chartRequestIdRef = useRef(0);
+  const olderCandlesAbortRef = useRef<AbortController | null>(null);
+  const isOlderCandlesLoadingRef = useRef(false);
   const setUser = useAuthStore((state) => state.setUser);
   const clearUser = useAuthStore((state) => state.clearUser);
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
@@ -82,6 +90,9 @@ export function DashboardClient() {
   const [loadedTimeframe, setLoadedTimeframe] = useState<Timeframe>("1h");
   const [isAccountLoading, setIsAccountLoading] = useState(true);
   const [isChartLoading, setIsChartLoading] = useState(true);
+  const [isOlderCandlesLoading, setIsOlderCandlesLoading] = useState(false);
+  const [hasMoreCandles, setHasMoreCandles] = useState(false);
+  const [candleCursor, setCandleCursor] = useState<string | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [isFundingWallet, setIsFundingWallet] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -170,12 +181,19 @@ export function DashboardClient() {
   useEffect(() => {
     const controller = new AbortController();
     const requestId = ++chartRequestIdRef.current;
+    olderCandlesAbortRef.current?.abort();
+    isOlderCandlesLoadingRef.current = false;
     setIsChartLoading(true);
+    setIsOlderCandlesLoading(false);
+    setHasMoreCandles(false);
+    setCandleCursor(null);
 
-    getCandles(selectedSymbol, timeframe, controller.signal)
-      .then((data) => {
+    getCandles(selectedSymbol, timeframe, { signal: controller.signal })
+      .then((page) => {
         if (requestId === chartRequestIdRef.current) {
-          setCandles(data);
+          setCandles(page.candles);
+          setHasMoreCandles(page.hasMore);
+          setCandleCursor(page.nextCursor);
           setLoadedTimeframe(timeframe);
           setConnectionError(null);
         }
@@ -197,8 +215,52 @@ export function DashboardClient() {
 
     return () => {
       controller.abort();
+      olderCandlesAbortRef.current?.abort();
     };
   }, [selectedSymbol, timeframe]);
+
+  const loadOlderCandles = useCallback(async () => {
+    if (
+      isChartLoading ||
+      !hasMoreCandles ||
+      !candleCursor ||
+      isOlderCandlesLoadingRef.current
+    ) {
+      return;
+    }
+
+    const requestId = chartRequestIdRef.current;
+    const controller = new AbortController();
+    olderCandlesAbortRef.current = controller;
+    isOlderCandlesLoadingRef.current = true;
+    setIsOlderCandlesLoading(true);
+
+    try {
+      const page = await getCandles(selectedSymbol, timeframe, {
+        before: candleCursor,
+        signal: controller.signal,
+      });
+
+      if (requestId !== chartRequestIdRef.current) {
+        return;
+      }
+
+      setCandles((current) => mergeCandles(page.candles, current));
+      setHasMoreCandles(page.hasMore);
+      setCandleCursor(page.nextCursor);
+      setConnectionError(null);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setConnectionError(getApiErrorMessage(error));
+      }
+    } finally {
+      if (requestId === chartRequestIdRef.current) {
+        olderCandlesAbortRef.current = null;
+        isOlderCandlesLoadingRef.current = false;
+        setIsOlderCandlesLoading(false);
+      }
+    }
+  }, [candleCursor, hasMoreCandles, isChartLoading, selectedSymbol, timeframe]);
 
   useEffect(() => {
     if (currentUserId === null) {
@@ -635,7 +697,9 @@ export function DashboardClient() {
             timeframe={timeframe}
             loadedTimeframe={loadedTimeframe}
             isLoading={isChartLoading}
+            isLoadingMore={isOlderCandlesLoading}
             onTimeframeChange={setTimeframe}
+            onLoadMore={loadOlderCandles}
           />
           <ActivityPanel
             positions={positions}
@@ -703,6 +767,19 @@ function MarketStat({
       <p className="text-[10px] font-medium text-[#7b8d9d]">{label}</p>
       <p className={`mt-1 text-xs font-bold ${color}`}>{value}</p>
     </div>
+  );
+}
+
+function mergeCandles(older: Candle[], current: Candle[]) {
+  const candlesByBucket = new Map<string, Candle>();
+
+  for (const candle of [...older, ...current]) {
+    candlesByBucket.set(candle.bucket, candle);
+  }
+
+  return Array.from(candlesByBucket.values()).sort(
+    (left, right) =>
+      new Date(left.bucket).getTime() - new Date(right.bucket).getTime(),
   );
 }
 

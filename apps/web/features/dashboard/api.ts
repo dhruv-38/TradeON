@@ -1,6 +1,7 @@
 import { api } from "../../lib/api";
 import type {
   Candle,
+  CandlePage,
   CreateOrderPayload,
   DashboardUser,
   LedgerEntry,
@@ -16,6 +17,15 @@ type DataResponse<T> = {
   success: boolean;
   data: T;
 };
+
+type CandlePageResponse = DataResponse<Candle[]> & {
+  pagination: {
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+};
+
+const CANDLE_PAGE_SIZE = 120;
 
 export async function getCurrentUser() {
   const response = await api.get<{ success: boolean; user: DashboardUser }>(
@@ -46,13 +56,22 @@ export async function depositFunds(amount: number) {
 export async function getCandles(
   symbol: SymbolCode,
   interval: Timeframe,
-  signal?: AbortSignal,
-) {
-  const response = await api.get<DataResponse<Candle[]>>("/market/candles", {
-    params: { symbol, interval, limit: 240 },
-    signal,
+  options: { before?: string; signal?: AbortSignal } = {},
+): Promise<CandlePage> {
+  const response = await api.get<CandlePageResponse>("/market/candles", {
+    params: {
+      symbol,
+      interval,
+      limit: CANDLE_PAGE_SIZE,
+      before: options.before,
+    },
+    signal: options.signal,
   });
-  return response.data.data;
+  return {
+    candles: response.data.data,
+    hasMore: response.data.pagination.hasMore,
+    nextCursor: response.data.pagination.nextCursor,
+  };
 }
 
 export async function getOrders() {

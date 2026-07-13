@@ -35,6 +35,12 @@ export type Candle = {
   volume?: number | string;
 };
 
+export type CandlePage = {
+  candles: Candle[];
+  hasMore: boolean;
+  nextCursor: string | null;
+};
+
 export type Order = {
   id: number;
   symbol: SymbolCode;

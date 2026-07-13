@@ -88,11 +88,22 @@ export async function createSchema() {
       );
     `);
 
+    await client.query(`
+      ALTER MATERIALIZED VIEW candles_1m
+      SET (timescaledb.materialized_only = false);
+    `);
+
     console.log("TimescaleDB schema created successfully");
   });
 }
 
-export async function refreshCandles() {
-  await query("CALL refresh_continuous_aggregate('candles_1m', NULL, NULL);");
-  await query("CALL refresh_continuous_aggregate('candles_5m', NULL, NULL);");
+export async function refreshCandles(windowStart: Date, windowEnd: Date) {
+  await query(
+    `CALL refresh_continuous_aggregate(
+      'candles_1m',
+      $1::timestamptz,
+      $2::timestamptz
+    );`,
+    [windowStart.toISOString(), windowEnd.toISOString()],
+  );
 }
