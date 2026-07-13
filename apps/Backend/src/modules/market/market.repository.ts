@@ -48,7 +48,7 @@ export const getCandles = async (
        WHERE symbol = $1
          AND bucket >= $4::timestamptz
          AND bucket < $5::timestamptz
-       GROUP BY bucket, symbol
+       GROUP BY time_bucket($3::interval, bucket), symbol
        ORDER BY bucket DESC
        LIMIT $2
      ) candles

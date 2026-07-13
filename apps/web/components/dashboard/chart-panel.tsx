@@ -212,17 +212,7 @@ export function ChartPanel({
       return;
     }
 
-    const candleData: CandlestickData<UTCTimestamp>[] = candles.map(
-      (candle) => ({
-        time: Math.floor(
-          new Date(candle.bucket).getTime() / 1000,
-        ) as UTCTimestamp,
-        open: Number(candle.open),
-        high: Number(candle.high),
-        low: Number(candle.low),
-        close: Number(candle.close),
-      }),
-    );
+    const candleData = normalizeCandleData(candles);
     const previousCandleCount = previousCandleCountRef.current;
     const addedCandleCount = candleData.length - previousCandleCount;
     const previousVisibleRange = visibleRangeRef.current;
@@ -389,6 +379,37 @@ function formatPrice(value: string | number) {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
+}
+
+function normalizeCandleData(candles: Candle[]) {
+  const candlesByTime = new Map<
+    number,
+    CandlestickData<UTCTimestamp>
+  >();
+
+  for (const candle of candles) {
+    const timestamp = Math.floor(new Date(candle.bucket).getTime() / 1000);
+    const open = Number(candle.open);
+    const high = Number(candle.high);
+    const low = Number(candle.low);
+    const close = Number(candle.close);
+
+    if (![timestamp, open, high, low, close].every(Number.isFinite)) {
+      continue;
+    }
+
+    candlesByTime.set(timestamp, {
+      time: timestamp as UTCTimestamp,
+      open,
+      high,
+      low,
+      close,
+    });
+  }
+
+  return Array.from(candlesByTime.values()).sort(
+    (left, right) => Number(left.time) - Number(right.time),
+  );
 }
 
 function getBucketTime(timestamp: number, timeframe: Timeframe) {
