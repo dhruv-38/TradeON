@@ -197,7 +197,7 @@ The current `docker-compose.yml` builds the web app with production API and WebS
 - **Persistence**: PostgreSQL, Prisma, ledger and wallet state
 - **Market history**: TimescaleDB, tick storage, candle aggregation
 - **Monorepo**: Turborepo, Bun workspaces
-- **Deployment**: Docker, Docker Compose, Nginx reverse proxy on VPS
+- **Deployment**: Docker, Docker Compose, Nginx reverse proxy on  AWS VPS
 
 ## Project Status
 
